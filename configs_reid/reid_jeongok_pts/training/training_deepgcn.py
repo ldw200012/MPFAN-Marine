@@ -9,7 +9,7 @@ model = dict(
     triplet_sample_num=128,
 )
 
-evaluation = dict(interval=50, pipeline=[], start=0)
+evaluation = dict(interval=10, pipeline=[], start=0)
 
 dataloader_kwargs = dict(
     val=dict(shuffle=True, prefetch_factor=2,persistent_workers=True),
