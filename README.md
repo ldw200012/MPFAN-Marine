@@ -2,6 +2,16 @@
 
 <b>M</b>ulti-<b>P</b>erspective <b>F</b>eature <b>A</b>ggregation <b>N</b>etwork <b>(MPFAN)</b> is a LiDAR point cloud-based 3D object re-identification model, powered by the aggregation of multiple feature vectors extracted using various sub-network structures.
 
+## BEFORE START
+📌 You need to SignUp to NeptuneAI, and input your Project & Token as below.
+```
+init_kwargs={
+'project':"dongwooklee1201/mpfan-marine-eval",
+'api_token':"eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiJiNmY3MjBiMi01Mjg2LTQwOTYtODIzYy00Mjk4MGIwMTQ4ZjcifQ==",
+...
+},
+```
+
 ## BUILD REPOSITORY
 1. Clone the MPFAN git repository (Main Workspace)
 ```
@@ -17,7 +27,7 @@ git clone https://github.com/c7huang/lamtk
 ```
 docker pull daldidan/mpfan:latest
 ```
-2. Run docker container
+2. Run docker container. You need to fix the parameters in run_docker.py
 ```
 python3 tools/run_docker.py
 ```

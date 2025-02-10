@@ -2,6 +2,10 @@ __pycache__
 
 .neptune/
 build/
-runs/
 Datasets/
+lamtk/
 *.egg-info/
+runs/
+
+# C extensions
+*.so

@@ -19,10 +19,10 @@ model = dict(
 )
 
 _bs = 128
-_min_points = 128
+_min_points = 2
 _subsample_mode = "random" # random | fps | rand_crop
-_val_subsample_mode = "fps" # random | fps | rand_crop
-_subsample_sparse = 128
+_val_subsample_mode = "random" # random | fps | rand_crop
+_subsample_sparse = 256
 
 data = dict(
     samples_per_gpu = _bs,
