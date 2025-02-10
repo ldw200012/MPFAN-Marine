@@ -3,7 +3,9 @@
 <b>M</b>ulti-<b>P</b>erspective <b>F</b>eature <b>A</b>ggregation <b>N</b>etwork <b>(MPFAN)</b> is a LiDAR point cloud-based 3D object re-identification model, powered by the aggregation of multiple feature vectors extracted using various sub-network structures.
 
 ## BEFORE START
-📌 You need to SignUp to NeptuneAI, and input your Project & Token as below.
+📌 You need to SignUp to NeptuneAI, and input your Project & Token as below to two files.
+- MPFAN-Marine/configs_reid/\_base\_/reidentification_runtime.py
+- MPFAN-Marine/configs_reid/\_base\_/reidentification_runtime_testing.py
 ```
 init_kwargs={
 'project':"dongwooklee1201/mpfan-marine-eval",
