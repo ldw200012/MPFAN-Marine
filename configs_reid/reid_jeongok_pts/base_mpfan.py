@@ -6,12 +6,15 @@ _base_ = [
 model = dict(
     type='ReIDNet',
 
-    # backbone=dict(type='PTr-PN', fe_module='pointnet'),
-    # backbone=dict(type='PTr-PX', fe_module='pointnext'),
-    # backbone=dict(type='PTr-DG', fe_module='dgcnn'),
-    # backbone=dict(type='PTr-Deep', fe_module='deepgcn'),
-    backbone=dict(type='PTr-DG-ED', fe_module='dgcnn', ED_nsample=10, ED_conv_out=16),
-    # backbone=dict(type='PTr-Deep-ED', fe_module='deepgcn', ED_nsample=10, ED_conv_out=16),
+    backbone=dict(type='DualReID'),
+
+    # backbone=dict(type='DualReID', fe_module='pointnet'),
+    # backbone=dict(type='DualReID', fe_module='pointnext'),
+    # backbone=dict(type='DualReID', fe_module='dgcnn'),
+    # backbone=dict(type='DualReID', fe_module='deepgcn'),
+
+    # backbone=dict(type='ED_DualReID', fe_module='dgcnn', ED_nsample=10, ED_conv_out=16),
+    # backbone=dict(type='ED_DualReID', fe_module='deepgcn', ED_nsample=10, ED_conv_out=16),
 
     losses_to_use=dict(
         match=True,
@@ -23,10 +26,10 @@ model = dict(
 )
 
 _bs = 128
-_min_points = 128
+_min_points = 2
 _subsample_mode = "random" # random | fps | rand_crop
-_val_subsample_mode = "fps" # random | fps | rand_crop
-_subsample_sparse = 128
+_val_subsample_mode = "random" # random | fps | rand_crop
+_subsample_sparse = 256
 
 data = dict(
     samples_per_gpu = _bs,
