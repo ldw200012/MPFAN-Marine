@@ -21,7 +21,7 @@ git clone https://github.com/ldw200012/MPFAN-Marine.git
 ```
 2. Clone LAMTK git repository (Lamtk Library)
 ```
-cd mpfan/
+cd MPFAN-Marine/
 git clone https://github.com/c7huang/lamtk
 ```
 ## ENVIRONMENT SETUP
