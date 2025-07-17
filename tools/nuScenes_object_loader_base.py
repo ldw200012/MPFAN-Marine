@@ -4,7 +4,6 @@ import time
 import os.path as osp
 import numpy as np
 import pickle as pkl
-from itertools import islice
 
 from mmdet.datasets import DATASETS
 from lamtk.aggregation.loader import Loader
@@ -12,6 +11,7 @@ from lamtk.aggregation.utils import filter_metadata_by_scene_ids, combine_metada
 from mmdet3d.datasets.utils import get_or_create_nuscenes_dict
 
 from pathlib import Path
+
 
 def combine_metadata_fix(metadata_path_sparse):
     """Combines metadata from multiple files into one dictionary, and fixes the 
@@ -21,13 +21,13 @@ def combine_metadata_fix(metadata_path_sparse):
     sparse_metadata = {x:pkl.load(open(os.path.join(metadata_path_sparse,x),'rb')) \
                                             for x in md_files}
 
-    for x in md_files:
-        temp = [int(y) for y in x[-11:-4].split("-")]
-        if 500 <= temp[0] and temp[1] <= 700:
-            print(x)
-            for k in sparse_metadata[x]['obj_infos']:
-                sparse_metadata[x]['obj_infos'][k]['path'] = Path("../../../new_datasets/lstk/sparse-waymo-det-both-train") \
-                                                             / sparse_metadata[x]['obj_infos'][k]['path']
+    # for x in md_files:
+    #     temp = [int(y) for y in x[-11:-4].split("-")]
+    #     if 500 <= temp[0] and temp[1] <= 700:
+    #         print(x)
+    #         for k in sparse_metadata[x]['obj_infos']:
+    #             sparse_metadata[x]['obj_infos'][k]['path'] = Path("../../../new_datasets/lstk/sparse-waymo-det-both-train") \
+    #                                                          / sparse_metadata[x]['obj_infos'][k]['path']
 
 
     metadata = dict(scene_infos={}, obj_infos={}, frame_infos={})
@@ -37,6 +37,7 @@ def combine_metadata_fix(metadata_path_sparse):
         metadata['obj_infos'].update(metadata_i['obj_infos'])
         metadata['frame_infos'].update(metadata_i['frame_infos'])
     return metadata
+
 
 def load_metadata(metadata_path,use_fix=False):
     if metadata_path.endswith('.pkl'):
@@ -50,8 +51,9 @@ def load_metadata(metadata_path,use_fix=False):
          
     return sparse_metadata
 
-def load_metadata_split(metadata_path,version,train):
-    """Loads a specific split of the dataset.
+
+def load_nuscenes_metadata_split(metadata_path,version,train):
+    """Loads a specific split of the nuScenes dataset.
     
     Args:
         metadata_path (str): Path to the metadata file.
@@ -61,69 +63,26 @@ def load_metadata_split(metadata_path,version,train):
     """
 
     splits_by_scene = get_or_create_nuscenes_dict(filename='ds_name_to_scene_token.pkl',
-                                                        filepath='Datasets/NuScenes-ReID/data/lstk',
-                                                        nuscenes_dataroot='Datasets/NuScenes-ReID/data/nuscenes')
+                                                        filepath='data/lstk',
+                                                        nuscenes_dataroot='data/nuscenes')
 
     metadata = load_metadata(metadata_path,use_fix=False)
     split = splits_by_scene[version]['train'].values() if train else splits_by_scene[version]['val'].values()
 
     return filter_metadata_by_scene_ids(metadata,split)
 
-def load_jeongok_metadata(metadata_path, train):
-    """Load Jeongok metadata and apply train/val split.
-    
-    Args:
-        metadata_path (str): Path to the metadata.pkl file
-        train (bool): Whether to load training or validation split
-    """
-    try:
-        with open(metadata_path, 'rb') as f:
-            metadata = pkl.load(f)
-    except FileNotFoundError:
-        print(f"Warning: Metadata file not found at {metadata_path}")
-        return dict(scene_infos={}, obj_infos={}, frame_infos={})
-    
-    # Apply Jeongok-specific train/val split
-    all_targets = list(metadata['obj_infos'].keys())
-    
-    # Separate regular targets from FP targets
-    regular_targets = [t for t in all_targets if not t.startswith('FP')]
-    fp_targets = [t for t in all_targets if t.startswith('FP')]
-    
-    # Sort regular targets numerically (target1, target2, etc.)
-    regular_targets.sort(key=lambda x: int(x.replace('target', '')))
-    
-    # Use first 6 regular targets for training, last 2 for validation
-    train_targets = regular_targets[:6]  # target1-target6
-    val_targets = regular_targets[6:8]   # target7-target8
-    # FP targets are always included in both splits
-    
-    if train:
-        # For training, include train targets + FP targets
-        valid_targets = train_targets + fp_targets
-    else:
-        # For validation, include val targets + FP targets  
-        valid_targets = val_targets + fp_targets
-    
-    # Filter metadata to only include valid targets for this split
-    filtered_metadata = {
-        'scene_infos': metadata['scene_infos'],
-        'obj_infos': {k: v for k, v in metadata['obj_infos'].items() if k in valid_targets},
-        'frame_infos': {k: v for k, v in metadata['frame_infos'].items() 
-                       if any(target in k for target in valid_targets)}
-    }
-    
-    print(f"[load_jeongok_metadata] {'Train' if train else 'Val'} split: {len(filtered_metadata['obj_infos'])} targets")
-    return filtered_metadata
 
 @DATASETS.register_module()
 class ObjectLoaderSparseBase(Loader):
 
-    def __init__(self, tracking_classes, min_points, **kwargs) -> None:
+    def __init__(self, tracking_classes, min_points, use_distance, filter_mode, **kwargs) -> None:
         super().__init__(**kwargs)
-
+        self.filter_mode = filter_mode
         self.min_points = min_points
+        self.use_distance = use_distance
         self.tracking_classes = tracking_classes
+        if self.filter_mode not in ['both','vis','pts','pts and vis']:
+            raise ValueError("filter_mode must be one of ['both','visibility','pts','pts and vis']")
 
     def load(self, *args, **kwargs):
         raise NotImplementedError("This method shouw be implemented in the child class")
@@ -135,22 +94,49 @@ class ObjectLoaderSparseBase(Loader):
             return self.load(obj,str(frame_id))
         else:
             raise ValueError(f'obj_id {obj_id} does not exist in obj_infos')
+        
 
     def get_filtered_nums(self,obj_key,obj_entry,min_points,only_keyframes=False):
 
-        nums = sorted(list(obj_entry['num_pts'].keys()),key=lambda x : int(x))
-        temp = np.array([obj_entry['num_pts'][int(x)] for x in nums])
-        obj_filter = np.where(temp >= min_points)
+        if self.filter_mode == 'both':
+            vis_num_keys = list(obj_entry['visibility'].keys())
+            pts_num_keys = list(obj_entry['num_pts'].keys())
+            nums = vis_num_keys + pts_num_keys
+            nums = list(set(nums))
+            nums = sorted(nums,key=lambda x : int(x))
+            if len(vis_num_keys) != len(pts_num_keys):
+                print(len(vis_num_keys),len(pts_num_keys))
 
-        t = np.where(temp == 0)
+        elif self.filter_mode == 'vis':
+           nums = list(obj_entry['visibility'].keys())
+           nums = sorted(nums,key=lambda x : int(x))
 
-        nums = np.array(nums)[obj_filter]
-        temp = temp[obj_filter]
+        elif self.filter_mode == 'pts':
+            nums = sorted(list(obj_entry['num_pts'].keys()),key=lambda x : int(x))
+            temp = np.array([obj_entry['num_pts'][int(x)] for x in nums])
+            obj_filter = np.where(temp >= min_points)
 
-        nums_to_distance = dict()
-        for i,num in enumerate(obj_entry['num_pts'].keys()):
-            nums_to_distance[num] = i
-        self.obj_infos[obj_key]['nums_to_distance'] = nums_to_distance
+            t = np.where(temp == 0)
+            # if len(t[0]) > 0:
+            #     print("num zero samples:",len(t[0]))
+            nums = np.array(nums)[obj_filter]
+
+        elif self.filter_mode == 'pts and vis':
+            vis_num_keys = set(list(obj_entry['visibility'].keys()))
+            pts_num_keys = sorted(list(obj_entry['num_pts'].keys()),key=lambda x : int(x))
+            temp = np.array([obj_entry['num_pts'][int(x)] for x in pts_num_keys])
+            obj_filter = np.where(temp >= min_points)
+            pts_num_keys = set(list(np.array(pts_num_keys)[obj_filter]))
+            nums = list(vis_num_keys.intersection(pts_num_keys))
+            nums = sorted(nums,key=lambda x : int(x))
+        else:
+            raise NotImplementedError("get_filtered_nums() in not implemented for self.filter_mode :{} ".format(self.filter_mode)) 
+
+        if self.use_distance:
+            nums_to_distance = dict()
+            for i,num in enumerate(obj_entry['num_pts'].keys()):
+                nums_to_distance[num] = i
+            self.obj_infos[obj_key]['nums_to_distance'] = nums_to_distance
 
         return nums
 
@@ -222,6 +208,8 @@ class ObjectLoaderSparseBase(Loader):
                 while(len(obj_buckets.get(self.buckets[density],[])) == 0):
                     density += 1
                     if density >= len(self.buckets):
+                        print(obj_buckets)
+                        print(self.obj_infos[obj_tok])
                         raise Exception("Infinite loop will occur in get_random_frame_even()")
         nums = obj_buckets.get(self.buckets[density],[])
         return np.random.choice(nums,num_samples,replace=replace)
@@ -248,11 +236,13 @@ class ObjectLoaderSparseBase(Loader):
                         raise Exception("Infinite loop will occur in get_random_frame_even()")
         
         return self.all_buckets[class_name][self.buckets[density_idx]],density_idx
+    
 
     def special_log(self,n):
         if n == 0:
             return -1
         return np.log2(n)
+    
 
     def load_points(self, info, frame_idx):
         points = []
@@ -266,13 +256,9 @@ class ObjectLoaderSparseBase(Loader):
             except KeyError: 
                 self.obj_id_to_nums[info['id']] = self.get_filtered_nums(info)
             path = osp.join(info['path'], frame_idx)
+                            #self.obj_id_to_nums[info['id']][frame_idx])
             for name, dim in zip(self.load_feats, self.load_dims):
-                if name == 'xyz_eigen':
-                    # Use eigen_k from config (default 16 if not set)
-                    k = getattr(self, 'eigen_k', 16)
-                    feats_file = f'{self.data_root}/{path}/pts_xyz_eigen_{k}.bin'
-                else:
-                    feats_file = f'{self.data_root}/{path}/pts_{name}.bin'
+                feats_file = f'{self.data_root}/{path}/pts_{name}.bin'
                 num_pts = int(os.stat(feats_file).st_size // (4 * dim))
                 num_pts -= int(num_pts * self.load_fraction)
                 points.append(np.fromfile(feats_file,
@@ -281,6 +267,7 @@ class ObjectLoaderSparseBase(Loader):
         else:
             raise ValueError(f'info must have either path or pts_data')
         return np.concatenate(points, axis=-1)
+
 
     def load_image(self, info, frame_idx):
         if 'path' in info:
@@ -312,48 +299,209 @@ class ObjectLoaderSparseBase(Loader):
     
         else:
             raise ValueError(f'info must have path')
-    
+
+
 ############################################
-# Jeongok
+# Nuscenes
 ############################################
+
     
 @DATASETS.register_module()
-class ObjectLoaderSparseJeongok(ObjectLoaderSparseBase):
+class ObjectLoaderSparseNuscenes(ObjectLoaderSparseBase):
     def __init__(self,
                  train,
-                 metadata_path,
                  version,
+                 metadata_path,
                  *args,
                  use_metdata_fix=False,
-                 use_jeongok_split=False,
                  **kwargs):
+        metadata = load_nuscenes_metadata_split(metadata_path,version,train)
+        super().__init__(*args,metadata=metadata,**kwargs)
 
-        # Load Jeongok metadata with train/val split
-        metadata = load_jeongok_metadata(metadata_path, train)
-        
-        super().__init__(*args, metadata=metadata, **kwargs)
+        self.sample_to_keyframes = get_or_create_nuscenes_dict(filename='sample_to_keyframes.pkl',
+                                                                        filepath='data/lstk',
+                                                                        nuscenes_dataroot='data/nuscenes')
 
-        # The metadata already contains the obj_infos, so we don't need to manually parse
-        # Just ensure all objects have the required fields
-        for obj_id, obj_info in self.obj_infos.items():
-            # Ensure path is set correctly
-            if 'path' not in obj_info:
-                obj_info['path'] = f'objects/{obj_id}'
-            
-            # Ensure class_name is set
-            if 'class_name' not in obj_info:
-                obj_info['class_name'] = 'boat'
-            
-            # Ensure scene_id is set
-            if 'scene_id' not in obj_info:
-                obj_info['scene_id'] = 'jeongok_scene'
+        self.instance_to_keyframes = get_or_create_nuscenes_dict(filename='instance_to_keyframes.pkl',
+                                                                        filepath='data/lstk',
+                                                                        nuscenes_dataroot='data/nuscenes')
 
         self.obj_id_to_nums = self.collect_obj_id_to_nums(self.min_points)
 
         t1 = time.time()
         self.get_buckets(np.arange(0,len(self.obj_id_to_nums)))
         self.get_all_buckets(np.arange(0,len(self.obj_id_to_nums)))
-        print("[ObjectLoaderSparseJeongok] Loading buckets took: ",time.time()-t1)
+        print("Loading buckets took: ",time.time()-t1)
 
     def load(self,*args,**kwerags):
         return self.load_points(*args,**kwerags)
+
+
+@DATASETS.register_module()
+class ObjectLoaderSparseNuscenesImage(ObjectLoaderSparseNuscenes):
+    def __init__(self,*args,crop_size=(224,224),**kwargs):
+        super().__init__(*args,**kwargs)
+        self.crop_size = crop_size
+        
+    def load(self,*args,**kwargs):
+        return self.load_image(*args,**kwargs)
+
+
+
+############################################
+# Waymo
+############################################
+
+
+@DATASETS.register_module()
+class ObjectLoaderSparseWaymo(ObjectLoaderSparseBase):
+    def __init__(self,
+                 metadata_path,
+                 *args,
+                 use_metdata_fix=False,
+                 **kwargs):
+
+        self.zero_samples = 0
+        metadata = load_metadata(metadata_path,use_fix=use_metdata_fix)
+        super().__init__(*args,metadata=metadata,**kwargs)
+
+        self.obj_id_to_nums = self.collect_obj_id_to_nums(self.min_points)
+
+        t1 = time.time()
+        self.get_buckets(np.arange(0,len(self.obj_id_to_nums)))
+        self.get_all_buckets(np.arange(0,len(self.obj_id_to_nums)))
+        print("Loading buckets took: ",time.time()-t1)
+        print("zero samples: ",self.zero_samples)
+
+
+    def get_filtered_nums(self,obj_key,obj_entry,min_points,only_keyframes=False):
+
+        if self.filter_mode == 'both':
+            vis_num_keys = list(obj_entry['box2d'].keys())
+            pts_num_keys = list(obj_entry['num_pts'].keys())
+            nums = vis_num_keys + pts_num_keys
+            nums = list(set(nums))
+            nums = sorted(nums,key=lambda x : int(x))
+            if len(vis_num_keys) != len(pts_num_keys):
+                print(len(vis_num_keys),len(pts_num_keys))
+
+        elif self.filter_mode == 'vis':
+           nums = list(obj_entry['box2d'].keys())
+           nums = sorted(nums,key=lambda x : int(x))
+
+        elif self.filter_mode == 'pts':
+            nums = sorted(list(obj_entry['num_pts'].keys()),key=lambda x : int(x))
+            temp = np.array([obj_entry['num_pts'][int(x)] for x in nums])
+            obj_filter = np.where(temp >= min_points)
+            nums = np.array(nums)[obj_filter]
+
+            t = np.where(temp == 0)
+            if len(t[0]) > 0:
+                self.zero_samples += len(t[0])
+                # print("num zero samples:",len(t[0]))
+
+        elif self.filter_mode == 'pts and vis':
+            if type(obj_entry['box2d']) == list:
+                print(obj_entry['box2d'])
+                return []
+            else:
+                # print("Not a list!!")
+                pass
+            #     if obj_entry['box2d'][0] != None:
+            #         print(obj_entry['box2d'])
+            #         exit(0)
+            #     return []
+
+            vis_num_keys = set(list(obj_entry['box2d'].keys()))
+            pts_num_keys = sorted(list(obj_entry['num_pts'].keys()),key=lambda x : int(x))
+            temp = np.array([obj_entry['num_pts'][int(x)] for x in pts_num_keys])
+            obj_filter = np.where(temp >= min_points)
+            pts_num_keys = set(list(np.array(pts_num_keys)[obj_filter]))
+            nums = list(vis_num_keys.intersection(pts_num_keys))
+            nums = sorted(nums,key=lambda x : int(x))
+        else:
+            raise NotImplementedError("get_filtered_nums() in not implemented for self.filter_mode :{} ".format(self.filter_mode)) 
+
+        if self.use_distance:
+            nums_to_distance = dict()
+            for i,num in enumerate(obj_entry['num_pts'].keys()):
+                nums_to_distance[num] = i
+            self.obj_infos[obj_key]['nums_to_distance'] = nums_to_distance
+
+        return nums
+
+    def load(self,*args,**kwerags):
+        return self.load_points(*args,**kwerags)
+
+
+@DATASETS.register_module()
+class ObjectLoaderSparseWaymoImage(ObjectLoaderSparseWaymo):
+    def __init__(self,*args,crop_size=(224,224),**kwargs):
+        super().__init__(*args,**kwargs)
+        self.crop_size = crop_size
+        
+    def load(self,*args,**kwargs):
+        return self.load_image(*args,**kwargs)
+
+
+
+############################################
+# Complete Loaders
+############################################
+
+@DATASETS.register_module()
+class ObjectLoaderCompleteBase(Loader):
+
+    def __init__(self,*args,**kwargs):
+        super().__init__(*args,**kwargs)
+
+    def __getitem__(self, obj_id):
+        obj = self.obj_infos.get(obj_id, None)
+        if obj:
+            pts = self.load_points(obj)
+            return  pts
+        else:
+            raise ValueError(f'obj_id {obj_id} does not exist in obj_infos')
+        
+
+
+@DATASETS.register_module()
+class ObjectLoaderCompleteNuscenes(Loader):
+
+    def __init__(self,train,version,metadata_path,*args,**kwargs):
+        metadata = load_nuscenes_metadata_split(metadata_path,version,train)
+        super().__init__(*args,metadata=metadata,**kwargs)
+
+    def __getitem__(self, obj_id):
+        obj = self.obj_infos.get(obj_id, None)
+        if obj:
+            pts = self.load_points(obj)
+            return  pts
+        else:
+            raise ValueError(f'obj_id {obj_id} does not exist in obj_infos')
+        
+@DATASETS.register_module()
+class ObjectLoaderCompleteWaymo(Loader):
+
+    def __init__(self,metadata_path,*args,**kwargs):
+        metadata = load_metadata(metadata_path,use_fix=False)
+        super().__init__(*args,metadata=metadata,**kwargs)
+
+    def __getitem__(self, obj_id):
+        obj = self.obj_infos.get(obj_id, None)
+        if obj:
+            pts = self.load_points(obj)
+            return  pts
+        else:
+            raise ValueError(f'obj_id {obj_id} does not exist in obj_infos')
+
+@DATASETS.register_module()
+class FakeCompleteLoader():
+    def __init__(self,subsample_num=2048):
+        self.ssn = subsample_num
+
+    def __getitem__(self,tok):
+        return np.zeros((3,self.ssn,))
+
+
+

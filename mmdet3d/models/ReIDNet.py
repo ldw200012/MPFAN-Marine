@@ -136,7 +136,7 @@ class ReIDNet(BaseDetector):
         self.ce = nn.CrossEntropyLoss()
         self.kl = nn.KLDivLoss(log_target=True,reduction='none')
         self.lsmx = nn.LogSoftmax(dim=1)
-        self.smooth_l1 = nn.SmoothL1Loss(reduce=True,reduction='mean',beta=1.0)
+        self.smooth_l1 = nn.SmoothL1Loss(reduction='mean',beta=1.0)
         self.triplet_loss = nn.TripletMarginLoss(margin=triplet_margin,p=triplet_p)
         self.triplet_sample_num = triplet_sample_num
         

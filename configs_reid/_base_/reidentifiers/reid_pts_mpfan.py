@@ -1,12 +1,12 @@
 num_classes  = 10 * 2
 output_feat_size = 128
-
 hidden_size = output_feat_size * 2
 hidden_size_match = output_feat_size * 2
 
 model = dict(
     losses_to_use=dict(kl=False,match=False,cls=False,shape=False,fp=False,triplet=False),
-    alpha=dict(kl=0,match=1,cls=1,shape=1,fp=1,vis=0,triplet=1,),
+    # alpha=dict(kl=0,match=1,cls=1,shape=1,fp=1,vis=0,triplet=1,),
+    alpha=dict(kl=1,match=1,cls=1,shape=1,fp=1,vis=1,triplet=1,),
 
     triplet_margin=10,
     triplet_p=2,
@@ -20,6 +20,7 @@ model = dict(
     use_dgcnn=False,
 
     # backbone=dict(type=''),
+    
     match_head=[dict(type='LinearRes', n_in=hidden_size_match, n_out=hidden_size_match, norm='GN',ng=8),
                 dict(type='Linear', in_features=hidden_size_match, out_features=1)],
     cls_head=[dict(type='LinearRes', n_in=hidden_size, n_out=hidden_size, norm='GN',ng=16),

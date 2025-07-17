@@ -144,7 +144,7 @@ def get_or_create_nuscenes_dict(filename,filepath='Datasets/NuScenes-ReID/data/n
     """
     assert filename.endswith('.pkl') or filename.endswith('.json'), 'name should end with .pkl or .json'
 
-    print("Filename: ", filename)
+    # print("Filename: ", filename)
 
     rank, world_size = get_dist_info()
     if not osp.isfile(osp.join(filepath,filename)) and rank == 0:
@@ -466,7 +466,7 @@ class MatchingEval(object):
                     for_a_pair=for_a_pair)
 
 def set_seeds(seed=0):
-    print("setting seed",seed)
+    # print("setting seed",seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
     np.random.seed(seed)

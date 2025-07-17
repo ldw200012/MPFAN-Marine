@@ -1,13 +1,13 @@
 _base_ = [
-    "../_base_/datasets/reid_jeongok_pts.py",
-    "../_base_/reidentifiers/reid_pts_deepgcn.py",
+    "../../_base_/datasets/reid_jeongok_pts.py",
+    "../../_base_/reidentifiers/reid_pts_pointnext.py",
 ]
 
 model = dict(
     type='ReIDNet',
 
-    backbone=dict(type='DeepGCN'),
-    # backbone=dict(type='ED_DeepGCN', ED_nsample=10, ED_conv_out=4),
+    backbone=dict(type='PointNeXt'),
+    # backbone=dict(type='ED_PointNeXt', ED_nsample=10, ED_conv_out=8),
 
     losses_to_use=dict(
         match=True,
@@ -18,7 +18,8 @@ model = dict(
         ),
 )
 
-_bs = 128
+# _bs = 128 # nuScenes
+_bs = 8 # Jeongok
 _min_points = 2
 _subsample_mode = "random" # random | fps | rand_crop
 _val_subsample_mode = "random" # random | fps | rand_crop

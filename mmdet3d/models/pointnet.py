@@ -143,7 +143,7 @@ def feature_transform_reguliarzer(trans):
 class PointNet(nn.Module):
     def __init__(self, k=40, normal_channel=True, use_hybrid=False):
         super(PointNet, self).__init__()
-        print("\033[91mPointNet Created\033[0m")
+        print("\033[91mSpawned Model: PointNet\033[0m")
 
         if normal_channel:
             channel = 6
@@ -165,7 +165,7 @@ class PointNet(nn.Module):
 class ED_PointNet(nn.Module):
     def __init__(self, k=40, normal_channel=True, use_hybrid=False, ED_nsample=10, ED_conv_out=4):
         super(ED_PointNet, self).__init__()
-        print("\033[91mED_PointNet Created\033[0m")
+        print("\033[91mSpawned Model: ED_PointNet\033[0m")
 
         if normal_channel:
             channel = 6

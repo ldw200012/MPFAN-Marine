@@ -19,23 +19,14 @@ deterministic=False
 log_config = dict(interval=8,
                 hooks=[
                     dict(type='TextLoggerHook',reset_flag=False),
-                    dict(type="NeptuneLoggerHook",
-                        init_kwargs={
-                            'project':"dongwooklee1201/mpfan-marine-eval",
-                            'api_token':"eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiJiNmY3MjBiMi01Mjg2LTQwOTYtODIzYy00Mjk4MGIwMTQ4ZjcifQ==",
-                            'name': "",
-                            'source_files': [],
-                            'tags': []
-                            },
-                        interval=16,
-                        ignore_last=True,
-                        reset_flag=True,
-                        with_step=True,
-                        by_epoch=True),
+                    dict(type="TensorboardLoggerHook",
+                        log_dir='runs/tensorboard',
+                        interval=16),
             ])
 
 validate=True
 
 custom_hooks = [
-    dict(type='SaveModelToNeptuneHook', priority=40),
+    dict(type='SaveModelToTensorboardHook', priority=40),
+    dict(type='TQDMProgressBarHook')
 ]

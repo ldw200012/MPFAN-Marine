@@ -18,7 +18,63 @@ from mmdet.apis import multi_gpu_test, set_random_seed
 from mmdet.datasets import replace_ImageToTensor
 from mmdet3d.utils import recursive_eval
 
-from tools.utils import setup_neptune_logger
+from tools.utils import setup_tensorboard_logger
+
+
+def print_test_dataset_info(dataset, cfg, data_loader, args):
+    """Print detailed information about test dataset."""
+    print("\n" + "="*80)
+    print("TEST DATASET INFORMATION")
+    print("="*80)
+    
+    print("\n📊 TEST DATASET:")
+    print("-" * 50)
+    print(f"  • Total samples: {len(dataset):,}")
+    print(f"  • Dataset class: {dataset.__class__.__name__}")
+    
+    # Print dataset attributes if available
+    if hasattr(dataset, 'dataset'):
+        print(f"  • Base dataset: {type(dataset.dataset).__name__}")
+        if hasattr(dataset.dataset, 'ann_file'):
+            print(f"  • Annotation file: {dataset.dataset.ann_file}")
+    
+    # Print data loading configuration
+    print(f"  • Batch size: {cfg.data.val_samples_per_gpu}")
+    print(f"  • Workers: {cfg.data.workers_per_gpu}")
+    print(f"  • Shuffle: False (testing)")
+    print(f"  • Distributed: True")
+    
+    # Print dataloader info
+    print(f"  • Dataloader length: {len(data_loader)}")
+    print(f"  • Samples per GPU: {cfg.data.val_samples_per_gpu}")
+    
+    # Model configuration
+    print("\n🤖 MODEL CONFIGURATION:")
+    print("-" * 50)
+    print(f"  • Eval only: {cfg.model.get('eval_only', 'N/A')}")
+    print(f"  • Triplet sample num: {cfg.model.get('triplet_sample_num', 'N/A')}")
+    
+    # Test configuration
+    print("\n🧪 TEST CONFIGURATION:")
+    print("-" * 50)
+    print(f"  • Checkpoint: {args.checkpoint}")
+    print(f"  • Fuse conv-bn: {args.fuse_conv_bn}")
+    print(f"  • Format only: {args.format_only}")
+    print(f"  • Show results: {args.show}")
+    print(f"  • Show dir: {args.show_dir}")
+    print(f"  • Evaluation metrics: {args.eval}")
+    
+    # Evaluation configuration
+    print("\n📈 EVALUATION CONFIGURATION:")
+    print("-" * 50)
+    eval_cfg = cfg.get("evaluation", {})
+    print(f"  • Interval: {eval_cfg.get('interval', 'N/A')}")
+    print(f"  • Start epoch: {eval_cfg.get('start', 'N/A')}")
+    print(f"  • Pipeline: {eval_cfg.get('pipeline', 'N/A')}")
+    
+    print("\n" + "="*80)
+    print()
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="MMDet test (and eval) a model")
@@ -113,7 +169,12 @@ def parse_args():
 
 def main():
 
-    assert '/btherien/github/nuscenes-devkit/python-sdk' in os.environ['PYTHONPATH']
+    # Suppress PyTorch deprecation warnings
+    import warnings
+    warnings.filterwarnings("ignore", message=".*size_average.*")
+    warnings.filterwarnings("ignore", message=".*reduce.*")
+
+    # assert '/btherien/github/nuscenes-devkit/python-sdk' in os.environ['PYTHONPATH']
     args = parse_args()
 
     dist.init()
@@ -137,7 +198,7 @@ def main():
 
     if 'tracking' in args.config.split('/')[0]:
         cfg = Config.fromfile(args.config)
-        cfg = setup_neptune_logger(cfg,args)
+        cfg = setup_tensorboard_logger(cfg,args)
         dataloader_kwargs=cfg.dataloader_kwargs
     else:
         configs.load(args.config, recursive=True)
@@ -206,9 +267,10 @@ def main():
         shuffle=False,
     )
 
+    # Print dataset information
+    print_test_dataset_info(dataset, cfg, data_loader, args)
 
     # old versions did not save class info in checkpoints, this walkaround is
-    # for backward compatibility
     if "CLASSES" in checkpoint.get("meta", {}):
         model.CLASSES = checkpoint["meta"]["CLASSES"]
     else:

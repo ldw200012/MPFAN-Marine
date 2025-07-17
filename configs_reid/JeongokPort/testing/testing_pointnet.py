@@ -1,5 +1,5 @@
 _base_ = [
-    "../base_pointnext.py",
+    "../base/base_pointnet.py",
     "../../_base_/schedules/cyclic_500e_lr1e-5.py",
     "../../_base_/reidentification_runtime_testing.py",
 ]
@@ -15,4 +15,3 @@ dataloader_kwargs = dict(
     val=dict(shuffle=True, prefetch_factor=36,persistent_workers=True),
     train=dict(shuffle=True, prefetch_factor=18,persistent_workers=True))
 
-neptune_tags = ['nus','only-match','testing','PointNeXt','point-cat']

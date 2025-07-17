@@ -1,7 +1,5 @@
 num_classes  = 10 * 2
-# output_feat_size = 64 # (original)
-output_feat_size = 128
-
+output_feat_size = 128 # 64 = original
 hidden_size = output_feat_size * 2
 hidden_size_match = output_feat_size * 2
 # 2 for avg and maxpool and 2 for concatenating the features of each object
@@ -38,6 +36,7 @@ model = dict(
         dict(type='ReLU'),
         dict(type='Conv1d', in_channels=2048, out_channels=2048, kernel_size=output_feat_size//4),
     ],
+    # shape_head=dict(),
     downsample=None,
     cross_stage1=dict(type='corss_attention',d_model=output_feat_size,nhead=2,attention='linear'),
     cross_stage2=dict(type='corss_attention',d_model=output_feat_size,nhead=2,attention='linear'),

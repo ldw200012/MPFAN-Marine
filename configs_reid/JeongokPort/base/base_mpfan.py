@@ -1,13 +1,20 @@
 _base_ = [
-    "../_base_/datasets/reid_jeongok_pts.py",
-    "../_base_/reidentifiers/reid_pts_pointnext.py",
+    "../../_base_/datasets/reid_jeongok_pts.py",
+    "../../_base_/reidentifiers/reid_pts_mpfan.py",
 ]
 
 model = dict(
     type='ReIDNet',
 
-    backbone=dict(type='PointNeXt'),
-    # backbone=dict(type='ED_PointNeXt', ED_nsample=10, ED_conv_out=8),
+    backbone=dict(type='DualReID'),
+
+    # backbone=dict(type='DualReID', fe_module='pointnet'),
+    # backbone=dict(type='DualReID', fe_module='pointnext'),
+    # backbone=dict(type='DualReID', fe_module='dgcnn'),
+    # backbone=dict(type='DualReID', fe_module='deepgcn'),
+
+    # backbone=dict(type='ED_DualReID', fe_module='dgcnn', ED_nsample=10, ED_conv_out=16),
+    # backbone=dict(type='ED_DualReID', fe_module='deepgcn', ED_nsample=10, ED_conv_out=16),
 
     losses_to_use=dict(
         match=True,

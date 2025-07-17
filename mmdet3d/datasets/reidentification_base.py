@@ -73,7 +73,7 @@ class ReIDDatasetBase(object):
 
         return log_vars
 
-    def evaluate(self,results,logger,neptune,**kwargs):
+    def evaluate(self,results,logger,tensorboard_writer=None,**kwargs):
         t1 = time.time()
         rank, world_size = get_dist_info()
         device_id = torch.cuda.current_device()
@@ -126,7 +126,15 @@ class ReIDDatasetBase(object):
                                                                             
             results_to_save = make_tup_str(results_to_save)
             json.dump(results_to_save,open('/tmp/results_per_visibility.json','w'))
-            neptune['results_per_visibility'].upload('/tmp/results_per_visibility.json')
+            
+            # Log to TensorBoard instead of Neptune
+            if tensorboard_writer is not None:
+                try:
+                    with open('/tmp/results_per_visibility.json', 'r') as f:
+                        results_content = f.read()
+                    tensorboard_writer.add_text('Results/Visibility_Results', results_content, 0)
+                except Exception as e:
+                    print(f"Warning: Failed to log results to TensorBoard: {e}")
 
             to_delete += ['val_match_preds','match_classes','num_points','is_fp',]
         else:
@@ -181,7 +189,15 @@ class ReIDDatasetBase(object):
             print(k,round(v,6))
 
         json.dump(results,open('/tmp/overall_results.json','w'))
-        neptune['overall_results'].upload('/tmp/overall_results.json')
+        
+        # Log to TensorBoard instead of Neptune
+        if tensorboard_writer is not None:
+            try:
+                with open('/tmp/overall_results.json', 'r') as f:
+                    overall_results_content = f.read()
+                tensorboard_writer.add_text('Results/Overall_Results', overall_results_content, 0)
+            except Exception as e:
+                print(f"Warning: Failed to log overall results to TensorBoard: {e}")
 
         return results
     
@@ -198,6 +214,12 @@ class ReIDDatasetBase(object):
         temp = np.array([len(v) for k,v in self.sparse_loader.obj_id_to_nums.items()])
         is_fp = np.array([k.startswith('FP') for k in self.sparse_loader.obj_id_to_nums.keys()])
         
+        # Debug prints
+        print(f"\033[93m[DEBUG] Dataset filtering:\033[0m")
+        print(f"\033[93mTotal objects: {total}\033[0m")
+        print(f"\033[93mObject tokens: {list(self.sparse_loader.obj_id_to_nums.keys())}\033[0m")
+        print(f"\033[93mFrame counts per object: {temp}\033[0m")
+        print(f"\033[93mIs FP flags: {is_fp}\033[0m")
 
         ##########################################
         #get true positive indices
@@ -205,6 +227,8 @@ class ReIDDatasetBase(object):
         keep_idx = np.where(reduce(np.logical_and,[temp > 2, is_fp == 0]))
         self.idx = idx[keep_idx]
         tp = len(self.idx)
+        print(f"\033[93mTrue positives after >2 frames filter: {tp}\033[0m")
+        
         self.classes = np.array([self.cls_to_idx[self.tracking_classes.get(
                                             self.sparse_loader.obj_infos[self.obj_tokens[x]]['class_name'], 
                                             'none_key',)]
@@ -214,6 +238,7 @@ class ReIDDatasetBase(object):
         self.idx = self.idx[keep_idx]
         tp_tracked = len(self.idx)
         self.classes = self.classes[keep_idx]
+        print(f"\033[93mTrue positives after class filtering: {tp_tracked}\033[0m")
 
         ##########################################
         #get false positive indices
@@ -221,6 +246,8 @@ class ReIDDatasetBase(object):
         keep_fp = np.where(reduce(np.logical_and,[temp > 0, is_fp == 1])) #keep all false positives with at least on example
         self.false_positive_idx = idx[keep_fp]
         fp = len(self.false_positive_idx)
+        print(f"\033[93mFalse positives after >0 frames filter: {fp}\033[0m")
+        
         self.false_positive_classes = np.array([self.cls_to_idx[self.tracking_classes_fp.get(self.sparse_loader.obj_infos[self.obj_tokens[x]]['class_name'], 
                                                                                           'none_key',)]
                                                 for x in self.false_positive_idx])
@@ -231,8 +258,18 @@ class ReIDDatasetBase(object):
         fp_tracked = len(self.false_positive_idx)
         self.false_positive_classes = self.false_positive_classes[keep_idx]
         self.false_positive_classes += len(self.CLASSES) #offset by 10 to avoid overlap with true classes
+        print(f"\033[93mFalse positives after class filtering: {fp_tracked}\033[0m")
         
-        print(f"\033[91mDataset # >>> Total = TP + FP: {total} = {tp} + {fp}, Tracked = TP + FP: {tp_tracked+fp_tracked} = {tp_tracked} + {fp_tracked}\033[0m")
+        print(f"\033[93mFinal dataset size: {tp_tracked + fp_tracked} objects\033[0m")
+
+        # print(f"\033[91mDataset Statistics:\033[0m")
+        # print(f"\033[91m┌─────────────────────────────────────────────────────────────┐\033[0m")
+        # print(f"\033[91m│ {'Metric':<25} │ {'All Objects':<15} │ {'Tracked Only':<15} │\033[0m")
+        # print(f"\033[91m├─────────────────────────────────────────────────────────────┤\033[0m")
+        # print(f"\033[91m│ {'Total Objects':<25} │ {total:<15} │ {tp_tracked+fp_tracked:<15} │\033[0m")
+        # print(f"\033[91m│ {'True Positive Objects':<25} │ {tp:<15} │ {tp_tracked:<15} │\033[0m")
+        # print(f"\033[91m│ {'False Positive Objects':<25} │ {fp:<15} │ {fp_tracked:<15} │\033[0m")
+        # print(f"\033[91m└─────────────────────────────────────────────────────────────┘\033[0m")
 
         self.shuffle_idx()
         
@@ -403,7 +440,7 @@ class ReIDDatasetBase(object):
             extracted = False
             while not extracted:
                 try:
-                    print(self.fp_buckets)
+                    # print(self.fp_buckets)
                     fps = self.fp_buckets[self.idx_to_cls_fp[taken_cls]][b] # [('FP_0000958', 1), ('FP_0001104', 1), ('FP_0001155', 1), ...]
                     extracted = True
                 except KeyError:

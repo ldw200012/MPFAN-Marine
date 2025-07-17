@@ -1,6 +1,6 @@
 _base_ = [
-    "../_base_/datasets/reid_jeongok_pts.py",
-    "../_base_/reidentifiers/reid_pts_dgcnn.py",
+    "../../_base_/datasets/reid_jeongok_pts.py",
+    "../../_base_/reidentifiers/reid_pts_dgcnn.py",
 ]
 
 model = dict(

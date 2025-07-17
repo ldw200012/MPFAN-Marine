@@ -1,7 +1,5 @@
 num_classes  = 10 * 2
-
 output_feat_size = 64
-
 hidden_size = output_feat_size * 2
 hidden_size_match = output_feat_size * 2
 # 2 for avg and maxpool and 2 for concatenating the features of each object

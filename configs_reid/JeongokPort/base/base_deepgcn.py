@@ -1,13 +1,13 @@
 _base_ = [
-    "../_base_/datasets/reid_jeongok_pts.py",
-    "../_base_/reidentifiers/reid_pts_spotr.py",
+    "../../_base_/datasets/reid_jeongok_pts.py",
+    "../../_base_/reidentifiers/reid_pts_deepgcn.py",
 ]
 
 model = dict(
     type='ReIDNet',
 
-    backbone=dict(type='SPoTr'),
-    # backbone=dict(type='ED_SPoTr', ED_nsample=10, ED_conv_out=4),
+    backbone=dict(type='DeepGCN'),
+    # backbone=dict(type='ED_DeepGCN', ED_nsample=10, ED_conv_out=4),
 
     losses_to_use=dict(
         match=True,

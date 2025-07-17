@@ -27,10 +27,13 @@ def train_model(
     dataloader_kwargs=dict(shuffle=True, prefetch_factor=4),
 ):
     logger = get_root_logger()
+    
+    # Set logger level to suppress hook priority information
+    logger.setLevel('WARNING')
 
     # prepare data loaders
     dataset = dataset if isinstance(dataset, (list, tuple)) else [dataset]
-    print(dataloader_kwargs)
+    # print(dataloader_kwargs)
     data_loaders = [
         build_dataloader(
             ds,
@@ -94,14 +97,21 @@ def train_model(
         optimizer_config = cfg.optimizer_config
 
     # register hooks
-    runner.register_training_hooks(
-        cfg.lr_config,
-        optimizer_config,
-        cfg.checkpoint_config,
-        cfg.log_config,
-        cfg.get("momentum_config", None),
-        custom_hooks_config=cfg.get('custom_hooks', None),
-    )
+    import sys
+    import os
+    from contextlib import redirect_stdout
+    
+    # Temporarily redirect stdout to suppress hook priority information
+    with open(os.devnull, 'w') as fnull:
+        with redirect_stdout(fnull):
+            runner.register_training_hooks(
+                cfg.lr_config,
+                optimizer_config,
+                cfg.checkpoint_config,
+                cfg.log_config,
+                cfg.get("momentum_config", None),
+                custom_hooks_config=cfg.get('custom_hooks', None),
+            )
     if isinstance(runner, EpochBasedRunner):
         runner.register_hook(DistSamplerSeedHook())
 

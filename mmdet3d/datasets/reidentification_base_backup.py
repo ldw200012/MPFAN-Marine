@@ -232,7 +232,7 @@ class ReIDDatasetBase(object):
         self.false_positive_classes = self.false_positive_classes[keep_idx]
         self.false_positive_classes += len(self.CLASSES) #offset by 10 to avoid overlap with true classes
         
-        print(f"\033[91mDataset # >>> Total = TP + FP: {total} = {tp} + {fp}, Tracked = TP + FP: {tp_tracked+fp_tracked} = {tp_tracked} + {fp_tracked}\033[0m")
+        # print(f"\033[91mDataset # >>> Total = TP + FP: {total} = {tp} + {fp}, Tracked = TP + FP: {tp_tracked+fp_tracked} = {tp_tracked} + {fp_tracked}\033[0m")
 
         self.shuffle_idx()
         

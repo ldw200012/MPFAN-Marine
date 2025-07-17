@@ -93,13 +93,13 @@ class BCELogits(torch.nn.Module):
 
 @LOSS.register_module()
 class FocalLoss(torch.nn.Module):
-    def __init__(self, gamma=0, alpha=None, size_average=True):
+    def __init__(self, gamma=0, alpha=None, reduction='mean'):
         super(FocalLoss, self).__init__()
         self.gamma = gamma
         self.alpha = alpha
         if isinstance(alpha, (float, int)): self.alpha = torch.Tensor([alpha, 1 - alpha])
         if isinstance(alpha, list): self.alpha = torch.Tensor(alpha)
-        self.size_average = size_average
+        self.reduction = reduction
 
     def forward(self, logit, target):
         if logit.dim() > 2:
@@ -120,10 +120,12 @@ class FocalLoss(torch.nn.Module):
             logpt = logpt * at
 
         loss = -1 * (1 - pt) ** self.gamma * logpt
-        if self.size_average:
+        if self.reduction == 'mean':
             return loss.mean()
-        else:
+        elif self.reduction == 'sum':
             return loss.sum()
+        else:
+            return loss
 
 
 

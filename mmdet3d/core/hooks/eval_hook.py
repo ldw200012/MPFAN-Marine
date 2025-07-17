@@ -9,7 +9,8 @@ from mmcv.runner import EvalHook as BaseEvalHook
 from torch.nn.modules.batchnorm import _BatchNorm
 
 
-from mmcv.runner import get_dist_info, NeptuneLoggerHook
+from mmcv.runner import get_dist_info
+from torch.utils.tensorboard import SummaryWriter
 
 
 def _calc_dynamic_intervals(start_interval, dynamic_interval_list):
@@ -142,13 +143,12 @@ class DistEvalHook(BaseDistEvalHook):
             runner (:obj:`mmcv.Runner`): The underlined training runner.
             results (list): Output results.
         """
+        # Find TensorBoard writer from hooks
+        tensorboard_writer = None
         for hook in runner._hooks:
-            # if issubclass(type(hook), EvalHook):
-            #     dataloader = hook.dataloader
-            if issubclass(type(hook), NeptuneLoggerHook):
-                neptune_hook = hook
-                neptune = hook.run
-        
+            if hasattr(hook, 'writer') and hook.writer is not None:
+                tensorboard_writer = hook.writer
+                break
 
         # print(runner.__dict__.keys())
         # print(runner._epoch)
@@ -156,14 +156,11 @@ class DistEvalHook(BaseDistEvalHook):
 
 
         eval_res = self.dataloader.dataset.evaluate(
-            results, logger=runner.logger,neptune=neptune, **self.eval_kwargs)
+            results, logger=runner.logger, tensorboard_writer=tensorboard_writer, **self.eval_kwargs)
 
         for name, val in eval_res.items():
             runner.log_buffer.output[name] = val
         runner.log_buffer.ready = True
-
-        if runner._epoch == 0:
-            neptune_hook.log(runner)
 
         if self.save_best is not None:
             # If the performance of model is pool, the `eval_res` may be an

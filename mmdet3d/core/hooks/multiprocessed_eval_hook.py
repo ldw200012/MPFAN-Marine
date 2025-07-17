@@ -8,6 +8,7 @@ import os
 import json
 import tempfile
 import shutil
+from tqdm import tqdm
 
 import os.path as osp 
 import torch.distributed as dist
@@ -62,18 +63,24 @@ class CustomEval(Hook):
         elif runner._epoch == 0 and self.eval_at_zero:
             self.validation_step(runner, eval_nuscenes=True)
 
-    def log_tracking_eval_to_neptune(self,runner,neptune,metrics_summary,prefix='overall/'):
-        """Method lo log different outputs to Neptune."""
-        for k,v in metrics_summary.items():
+    def log_tracking_eval_to_tensorboard(self, runner, tensorboard_writer, metrics_summary, prefix='overall/'):
+        """Method to log different outputs to TensorBoard."""
+        if tensorboard_writer is None:
+            return
+            
+        for k, v in metrics_summary.items():
             if type(v) == dict:
-                self.log_tracking_eval_to_neptune(runner,neptune,v,prefix=prefix+k+'/')
+                self.log_tracking_eval_to_tensorboard(runner, tensorboard_writer, v, prefix=prefix+k+'/')
             else:
                 if str(v) == 'nan':
                     v = -1
-                neptune[prefix + k].log(v, step=runner._epoch)
+                tensorboard_writer.add_scalar(prefix + k, v, runner._epoch)
 
-    def log_eval_to_neptune(self,runner,neptune,all_log_vars):
-        """Method lo log different outputs to Neptune."""
+    def log_eval_to_tensorboard(self, runner, tensorboard_writer, all_log_vars):
+        """Method to log different outputs to TensorBoard."""
+
+        if tensorboard_writer is None:
+            return
 
         tracker = runner.model.module.trackManager.tracker
 
@@ -87,14 +94,15 @@ class CustomEval(Hook):
         # print(e)
 
 
-        self.log_tracking_eval_to_neptune(runner,neptune,log_vars,prefix='val-reid-metrics_')
+        self.log_tracking_eval_to_tensorboard(runner, tensorboard_writer, log_vars, prefix='val-reid-metrics_')
 
         exit(0)
 
         results_to_save = make_tup_str(results_to_save)
         json.dump(results_to_save,open('/tmp/results_per_visibility.json','w'))
-        neptune['results_per_visibility'].upload('/tmp/results_per_visibility.json')
-
+        # Log results file to TensorBoard
+        if os.path.exists('/tmp/results_per_visibility.json'):
+            tensorboard_writer.add_text('Results/Visibility_Results', json.dumps(results_to_save, indent=2), runner._epoch)
 
         
         mistakes_summary = get_mistakes_summary(all_log_vars)
@@ -103,7 +111,12 @@ class CustomEval(Hook):
         text_file = '/tmp/tracking_mistakes.txt'
         os.system('rm {}'.format(text_file))
         get_text_summary_mistakes(mistakes_summary,txt_file=open(text_file,'w'))
-        neptune["text_summary_mistakes"].upload(text_file)
+        
+        # Log text summary to TensorBoard
+        if os.path.exists(text_file):
+            with open(text_file, 'r') as f:
+                text_content = f.read()
+            tensorboard_writer.add_text('Mistakes/Text_Summary', text_content, runner._epoch)
 
         plots += show_mistakes_ids_pct(mistakes_summary)
 
@@ -120,24 +133,30 @@ class CustomEval(Hook):
         # print(mistakes_summary)
         # print("=======================================")
         # print(metrics)
-        # self.log_tracking_eval_to_neptune(runner,neptune,mistakes_summary,prefix='val-mistakes')
-        self.log_tracking_eval_to_neptune(runner,neptune,metrics,prefix='val-metrics_')
+        # self.log_tracking_eval_to_tensorboard(runner, tensorboard_writer, mistakes_summary, prefix='val-mistakes')
+        self.log_tracking_eval_to_tensorboard(runner, tensorboard_writer, metrics, prefix='val-metrics_')
 
 
         
         for f in plots:
-            neptune['mistakes_and_metrics'].log(File(f))
+            # Log plots to TensorBoard
+            if os.path.exists(f):
+                tensorboard_writer.add_figure('Plots/Mistakes_and_Metrics', f, runner._epoch)
 
         # exit(0)
 
 
     def validation_step(self, runner, eval_nuscenes=True):
+        # Find TensorBoard writer from hooks
+        tensorboard_writer = None
+        for hook in runner._hooks:
+            if hasattr(hook, 'writer') and hook.writer is not None:
+                tensorboard_writer = hook.writer
+                break
+
         for hook in runner._hooks:
             if issubclass(type(hook), EvalHook):
                 dataloader = hook.dataloader
-            elif issubclass(type(hook), NeptuneLoggerHook):
-                neptune = hook.run
-
 
         tmpdir = self.tmpdir
         if tmpdir is None:
@@ -150,7 +169,7 @@ class CustomEval(Hook):
             if self.log_vars:
                 print('\n\nLogging all vars to all_log_vars.pkl\n ')
                 pickle.dump(all_log_vars, open('all_log_vars.pkl','wb'))
-                self.log_eval_to_neptune(runner,neptune,all_log_vars)
+                self.log_eval_to_tensorboard(runner, tensorboard_writer, all_log_vars)
 
 
             train = False if 'val' in dataloader.dataset.dataset.ann_file else True
@@ -158,19 +177,19 @@ class CustomEval(Hook):
                 pass
             else:
                 if eval_nuscenes:
-                    # self.log_eval_to_neptune(runner,neptune,all_log_vars,prefix='validation_')
+                    # self.log_eval_to_tensorboard(runner, tensorboard_writer, all_log_vars, prefix='validation_')
                     with warnings.catch_warnings():
                         warnings.simplefilter(action='ignore', category=FutureWarning)
-                        metrics_summary, nusc_results_trk = dataloader.dataset.evaluate_tracking(copy.deepcopy(results),train=train,neptune=neptune)
+                        metrics_summary, nusc_results_trk = dataloader.dataset.evaluate_tracking(copy.deepcopy(results),train=train,tensorboard_writer=tensorboard_writer)
 
                     del metrics_summary['meta']
                     del metrics_summary['cfg']
-                    self.log_tracking_eval_to_neptune(runner,neptune,metrics_summary,prefix='trk-metric: overall/')
+                    self.log_tracking_eval_to_tensorboard(runner, tensorboard_writer, metrics_summary, prefix='trk-metric: overall/')
 
                     metrics_summary, nusc_results_det = dataloader.dataset.evaluate_detection(results,train=train)
                     del metrics_summary['meta']
                     del metrics_summary['cfg']
-                    self.log_tracking_eval_to_neptune(runner,neptune,metrics_summary,prefix='det-metric: overall/')
+                    self.log_tracking_eval_to_tensorboard(runner, tensorboard_writer, metrics_summary, prefix='det-metric: overall/')
         else:
             results, all_log_vars = multi_gpu_test(runner.model, dataloader, tmpdir=tmpdir, gpu_collect=True)
             print("\n[after multi_gpu_test] current runner.rank:{}".format(runner.rank))
@@ -184,7 +203,7 @@ class CustomEval(Hook):
                 if self.log_vars:
                     print('\n\nLogging all vars to all_log_vars.pkl\n ')
                     pickle.dump(all_log_vars, open('all_log_vars.pkl','wb'))
-                    self.log_eval_to_neptune(runner,neptune,all_log_vars)
+                    self.log_eval_to_tensorboard(runner, tensorboard_writer, all_log_vars)
 
 
                 train = False if 'val' in dataloader.dataset.dataset.ann_file else True
@@ -194,15 +213,15 @@ class CustomEval(Hook):
                     if eval_nuscenes:
                         with warnings.catch_warnings():
                             warnings.simplefilter(action='ignore', category=FutureWarning)
-                            metrics_summary, nusc_results_trk = dataloader.dataset.evaluate_tracking(copy.deepcopy(results),train=train,neptune=neptune)
+                            metrics_summary, nusc_results_trk = dataloader.dataset.evaluate_tracking(copy.deepcopy(results),train=train,tensorboard_writer=tensorboard_writer)
                         del metrics_summary['meta']
                         del metrics_summary['cfg']
-                        self.log_tracking_eval_to_neptune(runner,neptune,metrics_summary,prefix='trk-metric: overall/')
+                        self.log_tracking_eval_to_tensorboard(runner, tensorboard_writer, metrics_summary, prefix='trk-metric: overall/')
 
                         metrics_summary, nusc_results_det = dataloader.dataset.evaluate_detection(results,train=train)
                         del metrics_summary['meta']
                         del metrics_summary['cfg']
-                        self.log_tracking_eval_to_neptune(runner,neptune,metrics_summary,prefix='det-metric: overall/')
+                        self.log_tracking_eval_to_tensorboard(runner, tensorboard_writer, metrics_summary, prefix='det-metric: overall/')
             
             print('before dist barrier')
             dist.barrier()
@@ -226,7 +245,8 @@ def single_gpu_test_simple(model,data_loader):
     results = []
     all_log_vars = []
     dataset = data_loader.dataset
-    prog_bar = mmcv.ProgressBar(len(dataset))
+    prog_bar = tqdm(total=len(dataset), desc='Evaluating', position=1, leave=False, 
+                   dynamic_ncols=True, mininterval=1.0, maxinterval=5.0)
     for i, data in enumerate(data_loader):
         with torch.no_grad():
             result, log_vars = model(return_loss=False, rescale=True, **data)
@@ -242,15 +262,14 @@ def single_gpu_test_simple(model,data_loader):
             result = [result[idx] for idx in temp_idx]
             log_vars = [log_vars[idx] for idx in temp_idx]
             
-            
-            
         results.extend(result)
         all_log_vars.extend(log_vars)
 
+        # Update progress bar
         batch_size = len(result)
-        for _ in range(batch_size):
-            prog_bar.update()
+        prog_bar.update(batch_size)
 
+    prog_bar.close()
     return results, all_log_vars
 
 
@@ -279,13 +298,13 @@ def multi_gpu_test(model, data_loader, tmpdir=None, gpu_collect=False):
     dataset = data_loader.dataset
     rank, world_size = get_dist_info()
     if rank == 0:
-        prog_bar = mmcv.ProgressBar(len(dataset))
+        prog_bar = tqdm(total=len(dataset), desc='Evaluating', position=1, leave=False,
+                       dynamic_ncols=True, mininterval=1.0, maxinterval=5.0)
 
     time.sleep(2)  # This line can prevent deadlock problem in some cases.
     for i, data in enumerate(data_loader):
         with torch.no_grad():
             result, log_vars = model(return_loss=False, rescale=True, **data)
-            # print(log_vars)
 
         batch_size = len(result)
         temp_idx = []
@@ -303,16 +322,12 @@ def multi_gpu_test(model, data_loader, tmpdir=None, gpu_collect=False):
         results.extend(result)
         all_log_vars.extend(log_vars)
 
-        # print(type(results))
-
+        # Update progress bar only on rank 0
         if rank == 0:
-            for _ in range(batch_size * world_size):
-                prog_bar.update()
+            prog_bar.update(batch_size * world_size)
 
-
-        # if i > 90: 
-        #     break
-
+    if rank == 0:
+        prog_bar.close()
 
     dist.barrier()
 
