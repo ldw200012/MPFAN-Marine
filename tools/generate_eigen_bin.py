@@ -76,6 +76,7 @@ def main():
                 #     print(f"{x:.6f} {y:.6f} {z:.6f} {eigs[0]:.6e} {eigs[1]:.6e} {eigs[2]:.6e}")
                 
                 out = np.concatenate([points, eigenvalues], axis=1)  # shape (N, 6)
+                print(eigen_path)
                 out.astype(np.float32).tofile(eigen_path)
                 print(f"  Saved: {eigen_path}")
             else:
