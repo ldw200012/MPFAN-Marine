@@ -4,9 +4,8 @@ Modified from: https://github.com/idiap/fast-transformers/blob/master/fast_trans
 """
 
 import torch
+import torch.nn as nn
 from torch.nn import Module, Dropout
-
-
 
 def nan_to_num(tensor, nan=0.0):
     mask = ~torch.isfinite(tensor)
@@ -15,7 +14,6 @@ def nan_to_num(tensor, nan=0.0):
 
 def elu_feature_map(x):
     return torch.nn.functional.elu(x) + 1
-
 
 class LinearAttention(Module):
     def __init__(self, eps=1e-6):
@@ -51,7 +49,6 @@ class LinearAttention(Module):
         queried_values = torch.einsum("nlhd,nhdv,nlh->nlhv", Q, KV, Z) * v_length
 
         return queried_values.contiguous()
-
 
 class FullAttention(Module):
     def __init__(self, use_dropout=False, attention_dropout=0.1):
@@ -89,14 +86,6 @@ class FullAttention(Module):
         queried_values = torch.einsum("nlsh,nshd->nlhd", A, values)
 
         return queried_values.contiguous()
-
-
-
-
-
-import torch
-import torch.nn as nn
-
 
 def knn(x, k):
     inner = -2*torch.matmul(x.transpose(2, 1), x)
@@ -154,12 +143,12 @@ def get_graph_xyz(x, k=20, idx=None):
   
     return feature
 
-class corss_attention(nn.Module):
+class cross_attention(nn.Module):
     def __init__(self,
                  d_model,
                  nhead,
                  attention='linear'):
-        super(corss_attention, self).__init__()
+        super(cross_attention, self).__init__()
 
         self.dim = d_model // nhead
         self.nhead = nhead
@@ -299,20 +288,6 @@ class local_self_attention(nn.Module):
 
         return (search_feat+message).view(bs, ns, self.d_model).permute(0, 2, 1)        # [B, C, N]
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-# linear cross attention block
 class cross_lin_attn(nn.Module):
     def __init__(self,
                  d_model,

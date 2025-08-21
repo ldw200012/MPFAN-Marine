@@ -17,7 +17,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .pointnet2_utils import knn_point
+from mmdet3d.models.layers.pointnet2_utils import knn_point
 
 
 def knn(x, k):

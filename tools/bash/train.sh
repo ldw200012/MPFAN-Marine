@@ -2,10 +2,10 @@
 # train_reid.sh
 #
 # Usage:
-#   ./train_reid.sh <GPU_ID> <model_name>
+#   ./train_reid.sh <GPU_ID> <model_name> <port_name>
 #
 # Example:
-#   ./train_reid.sh 0 osnet_ibn_x1_0
+#   ./train_reid.sh 0 osnet_ibn_x1_0 JeongokPort
 #
 # The script sets the selected GPU, then launches torchpack-distributed
 # training with the chosen model-specific config.
@@ -13,19 +13,22 @@
 set -euo pipefail
 
 # ---- Parse arguments --------------------------------------------------------
-if [[ $# -ne 2 ]]; then
-  echo "Usage: $0 <GPU_ID> <model_name>"
+if [[ $# -ne 3 ]]; then
+  echo "Usage: $0 <GPU_ID> <model_name> <data_name>"
   exit 1
 fi
 
 GPU_ID="$1"
 MODEL_NAME="$2"
+DATA_NAME="$3"
 
 # ---- Launch training --------------------------------------------------------
 CUDA_VISIBLE_DEVICES="${GPU_ID}" \
 MASTER_ADDR=localhost \
 torchpack dist-run -v -np 1 \
   python tools/train.py \
-  "configs_reid/JeongokPort/training/training_${MODEL_NAME}.py" \
+  "configs_reid/${DATA_NAME}/training/training_${MODEL_NAME}.py" \
   --seed 66 \
   --run-dir runs/
+
+# ./train_reid.sh 0 pointnet JeongokPort

@@ -53,15 +53,15 @@ class CustomEval(Hook):
         self.nusc_intermediate_eval = nusc_intermediate_eval
 
     def after_run(self, runner):
-        self.validation_step(runner, eval_nuscenes=True)
+        self.validation_step(runner, eval_genericdataset=True)
 
     def before_epoch(self, runner):
         if runner._epoch < self.eval_start_epoch:
             return
         elif ( runner._epoch % self.interval ) == 0 and runner._epoch > 0:
-            self.validation_step(runner,eval_nuscenes=self.nusc_intermediate_eval)
+            self.validation_step(runner,eval_genericdataset=self.nusc_intermediate_eval)
         elif runner._epoch == 0 and self.eval_at_zero:
-            self.validation_step(runner, eval_nuscenes=True)
+            self.validation_step(runner, eval_genericdataset=True)
 
     def log_tracking_eval_to_tensorboard(self, runner, tensorboard_writer, metrics_summary, prefix='overall/'):
         """Method to log different outputs to TensorBoard."""
@@ -146,7 +146,7 @@ class CustomEval(Hook):
         # exit(0)
 
 
-    def validation_step(self, runner, eval_nuscenes=True):
+    def validation_step(self, runner, eval_genericdataset=True):
         # Find TensorBoard writer from hooks
         tensorboard_writer = None
         for hook in runner._hooks:
@@ -176,7 +176,7 @@ class CustomEval(Hook):
             if results == None: 
                 pass
             else:
-                if eval_nuscenes:
+                if eval_genericdataset:
                     # self.log_eval_to_tensorboard(runner, tensorboard_writer, all_log_vars, prefix='validation_')
                     with warnings.catch_warnings():
                         warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -210,7 +210,7 @@ class CustomEval(Hook):
                 if results == None: 
                     pass
                 else:
-                    if eval_nuscenes:
+                    if eval_genericdataset:
                         with warnings.catch_warnings():
                             warnings.simplefilter(action='ignore', category=FutureWarning)
                             metrics_summary, nusc_results_trk = dataloader.dataset.evaluate_tracking(copy.deepcopy(results),train=train,tensorboard_writer=tensorboard_writer)

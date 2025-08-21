@@ -5,7 +5,7 @@ import torch.nn.parallel
 import torch.utils.data
 from torch.autograd import Variable
 import torch.nn.functional as F
-from .pointnet2_utils import knn_point
+from mmdet3d.models.layers.pointnet2_utils import knn_point
 
 class STN3d(nn.Module):
     def __init__(self, channel):
@@ -149,17 +149,12 @@ class PointNet(nn.Module):
             channel = 6
         else:
             channel = 3
+            
         self.feat = PointNetEncoder(global_feat=True, feature_transform=True, channel=channel)
         self.use_hybrid = use_hybrid
 
     def forward(self, x, backbone_list):
-        # print("\033[91mPointNet input\033[0m")
-
         xyz, x = self.feat(x, self.use_hybrid)
-
-        # print("\033[91mPointNet forward return xyz, x\033[0m")
-        # print("\033[91xyz (input):\033[0m ", xyz.shape)
-        # print("\033[91x (feature):\033[0m ", x.shape)
         return xyz, x
     
 class ED_PointNet(nn.Module):
@@ -171,6 +166,7 @@ class ED_PointNet(nn.Module):
             channel = 6
         else:
             channel = 3
+
         self.feat = PointNetEncoder(global_feat=True, feature_transform=True, channel=channel)
         self.use_hybrid = use_hybrid
 

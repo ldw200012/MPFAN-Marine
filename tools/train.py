@@ -24,7 +24,6 @@ from mmdet3d.utils import get_root_logger, convert_sync_batchnorm, recursive_eva
 from tools.utils import setup_tensorboard_logger
 from tools.tqdm_progress_hook import TQDMProgressBarHook
 
-
 def print_dataset_info(datasets, cfg, dataloader_kwargs):
     """Print detailed information about training and validation datasets."""
     print("\n" + "="*80)
@@ -142,7 +141,6 @@ def print_dataset_info(datasets, cfg, dataloader_kwargs):
     print("\n" + "="*80)
     print()
 
-
 def export_val_pairs(val_dataset, output_dir="."):
     now = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     output_path = os.path.join(output_dir, f"val_pairs_{now}.txt")
@@ -171,7 +169,6 @@ def export_val_pairs(val_dataset, output_dir="."):
                 f.write(f"NEG\t{obj1}\t{frame1}\t{npts1}\t{obj2}\t{frame2}\t{npts2}\tclass1:{cls1}\tclass2:{cls2}\n")
     print(f"Validation pairs exported to {output_path}")
 
-
 def main():
 
     # Suppress NCCL verbose output
@@ -187,7 +184,6 @@ def main():
     warnings.filterwarnings("ignore", message=".*size_average.*")
     warnings.filterwarnings("ignore", message=".*reduce.*")
 
-    # assert '/btherien/github/nuscenes-devkit/python-sdk' in os.environ['PYTHONPATH']
     dist.init()
 
     parser = argparse.ArgumentParser()
@@ -222,12 +218,6 @@ def main():
         print("loading from checkpoint:", args.checkpoint)
         cfg.load_from = args.checkpoint
 
-    # print(cfg.pretty_text)
-    # exit(0)
-
-    # datasets = [build_dataset(cfg.data.val)]
-    # exit(0)
-    
     torch.backends.cudnn.benchmark = cfg.cudnn_benchmark
     torch.cuda.set_device(dist.local_rank())
 
@@ -236,7 +226,6 @@ def main():
     print("Setting local rank (GPU ID) to {}".format(dist.local_rank()))
     print("###############################################################################################")
     print("\n\n")
-    time.sleep(0.2)
 
     if args.run_dir is None:
         args.run_dir = auto_set_run_dir()
@@ -257,10 +246,10 @@ def main():
 
     # set random seeds
     if cfg.seed is not None:
-        logger.info(
-            f"Set random seed to {cfg.seed}, "
-            f"deterministic mode: {cfg.deterministic}"
-        )
+        # logger.info(
+        #     f"Set random seed to {cfg.seed}, "
+        #     f"deterministic mode: {cfg.deterministic}"
+        # )
         random.seed(cfg.seed)
         np.random.seed(cfg.seed)
         torch.manual_seed(cfg.seed)
@@ -268,7 +257,7 @@ def main():
             torch.backends.cudnn.deterministic = True
             torch.backends.cudnn.benchmark = False
 
-    print("CFG_DATA_TRAIN: ", cfg.data.train)
+    # print("CFG_DATA_TRAIN: ", cfg.data.train)
     datasets = [build_dataset(cfg.data.train)]
 
     # Print dataset information

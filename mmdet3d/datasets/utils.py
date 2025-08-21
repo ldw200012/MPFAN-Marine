@@ -18,7 +18,7 @@ import torch.distributed as dist
 import os.path as osp
 
 from .selfattention import AttentionLayer
-from mmdet3d.models import pointnet2_utils as pu2
+from mmdet3d.models.layers import pointnet2_utils as pu2
 
 
 def extract_result_dict(results, key):
@@ -47,7 +47,7 @@ def extract_result_dict(results, key):
         data = data._data
     return data
 
-class NuscenesDicts():
+class GenericDatasetDicts():
     def __init__(self):
         pass
 
@@ -131,8 +131,8 @@ class NuscenesDicts():
         scene_token_to_keyframes = self.get_scene_token_to_keyframes(nusc)
         return {k:scene_token_to_keyframes[v] for k,v in instance_to_scene.items()}
 
-def get_or_create_nuscenes_dict(filename,filepath='Datasets/NuScenes-ReID/data/nuscenes/nuscenes_dicts',nuscenes_dataroot='Datasets/NuScenes-ReID/data/nuscenes'):
-    """Method to create or load a nuscenes dict from disk.
+def get_or_create_generic_dict(filename,filepath='Datasets/NuScenes-ReID/data/nuscenes/nuscenes_dicts',generic_dataroot='Datasets/NuScenes-ReID/data/nuscenes'):
+    """Method to create or load a generic dataset dict from disk.
 
     This method allows for creating small files that contain dataset information at the begining of training.
 
@@ -140,7 +140,7 @@ def get_or_create_nuscenes_dict(filename,filepath='Datasets/NuScenes-ReID/data/n
         filename (str): name of the file to create or load; also doubles as the suffix for the 
                         dict creation method.
         filepath (str): path to the directory where the file should be created or loaded.
-        nuscenes_dataroot (str, optional): path to the nuscenes dataset. Defaults to 'data/nuscenes'.
+        generic_dataroot (str, optional): path to the generic dataset. Defaults to 'data/genericdataset'.
     """
     assert filename.endswith('.pkl') or filename.endswith('.json'), 'name should end with .pkl or .json'
 
@@ -151,9 +151,9 @@ def get_or_create_nuscenes_dict(filename,filepath='Datasets/NuScenes-ReID/data/n
         from nuscenes import NuScenes
         # nusc =  NuScenes(dataroot="/home/data/nuscenes",version='v1.0-mini')
         # nusc =  NuScenes(dataroot="/home/data",version='lstk')
-        # nusc =  NuScenes(dataroot=nuscenes_dataroot,version='v1.0-trainval')
-        nusc =  NuScenes(dataroot=nuscenes_dataroot,version='v1.0-mini')
-        out = getattr(NuscenesDicts(),'get_{}'.format(filename.split('.')[0]))(nusc)
+        # nusc =  NuScenes(dataroot=generic_dataroot,version='v1.0-trainval')
+        nusc =  NuScenes(dataroot=generic_dataroot,version='v1.0-mini')
+        out = getattr(GenericDatasetDicts(),'get_{}'.format(filename.split('.')[0]))(nusc)
 
         if not osp.isdir(filepath):
             os.makedirs(filepath)

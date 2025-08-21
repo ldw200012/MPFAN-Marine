@@ -7,7 +7,7 @@ from mmcv.parallel import DataContainer as DC
 from mmdet.datasets import DATASETS
 from .reidentification_base import ReIDDatasetBase
 from .utils import (set_seeds, make_tup_str, to_tensor, \
-                    subsamplePC, get_or_create_nuscenes_dict)
+                    subsamplePC, get_or_create_generic_dict)
 
 def random_rotate(pc, roll_range=(-np.pi/4, np.pi/4), pitch_range=(-np.pi/4, np.pi/4), yaw_range=(0, 2*np.pi)):
     # Roll (X axis)
@@ -48,43 +48,38 @@ def random_jitter(pc, sigma=0.01, clip=0.05):
     return pc + jitter
 
 AUGMENTATION_FUNCS = {
-    "rotate": random_rotate,
-    "scale": random_scale,
-    "translate": random_translate,
-    "jitter": random_jitter,
+    "rotate": lambda pc: random_rotate(pc),
+    "scale": lambda pc: random_scale(pc),
+    "translate": lambda pc: random_translate(pc),
+    "jitter": lambda pc: random_jitter(pc),
 }
 
 @DATASETS.register_module()
 class ReIDDatasetJeongok(ReIDDatasetBase):
-    def __init__(self, *args, num_pairs_per_object=100, augmentations=None, **kwargs):
-        self.num_pairs_per_object = num_pairs_per_object
+    """
+    Dataset for ReID with per-epoch, class-balanced, semi-exhaustive pair sampling.
+    For each class, samples K positive pairs per epoch, and for each positive, a matched negative.
+    """
+    def __init__(self, *args, pairs_per_target=1, augmentations=None, **kwargs):
+        self.pairs_per_target = pairs_per_target
         self.augmentations = augmentations if augmentations is not None else []
         super().__init__(*args, **kwargs)
-        
         self.instance_token_to_id = dict()
-
-        # Get base_path from config instead of hardcoding
-        # The sparse_loader will be initialized in the parent class
-        # We'll get the path from the sparse_loader's data_root
-        super().__init__(*args, **kwargs)
-        
-        # Now that sparse_loader is initialized, get the base_path from it
-        base_path = os.path.join(self.sparse_loader.data_root, 'objects')
         id = 0
-        for instance_token in os.listdir(base_path):
+        for instance_token in sorted(os.listdir(self.sparse_loader.data_root)):
             if instance_token.startswith('FP'):
                 pass
             else:
                 self.instance_token_to_id[instance_token] = id
                 id += 1
 
+        # print(self.instance_token_to_id)
+
         self.obj_tokens = list(self.sparse_loader.obj_id_to_nums.keys())
-
         self.collect_dataset_idx()
-
+        self._epoch = 0
+        self._build_epoch_pairs()
         self.maintain_api()
-
-        self.vis_to_cls_id = {1:0,2:1,3:2,4:3}
 
     def before_collect_dataset_idx_hook(self):
         pass
@@ -92,8 +87,101 @@ class ReIDDatasetJeongok(ReIDDatasetBase):
     def after_collect_dataset_idx_hook(self):
         pass
 
+    def set_epoch(self, epoch):
+        """Call this at the start of each epoch to reshuffle pairs."""
+        self._epoch = epoch
+        self._build_epoch_pairs()
+
+    def _build_epoch_pairs(self):
+        """Builds the list of positive and negative pairs for this epoch."""
+        rng = np.random.RandomState(self._epoch)
+
+        obj_infos = self.sparse_loader.obj_infos
+
+        # Map class name to list of obj_idx
+        class_to_obj_idxs = {}
+        for idx, cls in enumerate(self.classes):
+            # print("Class #: ", idx, " / " , cls)
+            class_to_obj_idxs.setdefault(cls, []).append(self.idx[idx])
+
+        fp_class_to_obj_idxs = {}
+        for idx, cls in enumerate(self.false_positive_classes):
+            # print("Class #: ", idx, " / " , cls)
+            fp_class_to_obj_idxs.setdefault(cls, []).append(self.false_positive_idx[idx])
+
+        # print(class_to_obj_idxs)
+        # print(fp_class_to_obj_idxs)
+
+        self._pairs = []
+
+        for cls, obj_idxs in class_to_obj_idxs.items():
+            for obj_idx in obj_idxs:
+                # print("Making Positive Pairs from ", obj_idx)
+
+                obj_tok = self.obj_tokens[obj_idx]
+                frames = list(obj_infos[obj_tok]['num_pts'].keys())
+
+                if len(frames) < 2:
+                    continue  # Not enough frames to form a positive pair
+
+                # Sample positive pairs for this object
+                all_pos_combinations = list(itertools.combinations(frames, 2))
+                if len(all_pos_combinations) > self.pairs_per_target:
+                    pos_indices = rng.choice(len(all_pos_combinations), self.pairs_per_target, replace=False)
+                    pos_frame_pairs = [all_pos_combinations[i] for i in pos_indices]
+                else:
+                    pos_frame_pairs = all_pos_combinations
+
+                # print("Made Positive Pairs: ", pos_frame_pairs)
+
+                for anchor_frame, pair_frame in pos_frame_pairs:
+                    # Positive pair (same object)
+                    self._pairs.append({
+                        'type': 'pos',
+                        'anchor_obj': obj_tok,
+                        'anchor_frame': anchor_frame,
+                        'pair_obj': obj_tok,
+                        'pair_frame': pair_frame,
+                        'anchor_class': cls,
+                        'pair_class': cls,
+                    })
+
+                    # Sample a negative frame from a different object
+                    other_obj_idxs = [{cls:t} for t in obj_idxs if t != obj_idx]
+
+                    # add FP objects
+                    for fp_cls, fp_obj_idxs in fp_class_to_obj_idxs.items():
+                        other_obj_idxs += [{fp_cls: t} for t in fp_obj_idxs]
+
+                    if not other_obj_idxs:
+                        continue  # Skip if no other class to make negative
+                    
+                    neg_obj_idx = rng.choice(other_obj_idxs)
+                    neg_cls, neg_obj_idx = list(neg_obj_idx.items())[0]
+
+                    neg_obj_tok = self.obj_tokens[neg_obj_idx]
+                    neg_frames = list(obj_infos[neg_obj_tok]['num_pts'].keys())
+
+                    if not neg_frames:
+                        continue
+
+                    neg_frame = rng.choice(neg_frames)
+
+                    self._pairs.append({
+                        'type': 'neg',
+                        'anchor_obj': obj_tok,
+                        'anchor_frame': anchor_frame,
+                        'pair_obj': neg_obj_tok,
+                        'pair_frame': neg_frame,
+                        'anchor_class': cls,
+                        'pair_class': neg_cls,
+                    })
+
+        # print(self._pairs)
+        rng.shuffle(self._pairs)
+
     def __len__(self):
-        return len(self.idx) * self.num_pairs_per_object
+        return len(self._pairs)
 
     def apply_augmentations(self, pc):
         for aug in self.augmentations:
@@ -102,42 +190,21 @@ class ReIDDatasetJeongok(ReIDDatasetBase):
         return pc
 
     def __getitem__(self, i):
-        obj_idx = i % len(self.idx)
-        l1 = self.classes[obj_idx]
-        pos_obj_tok = self.obj_tokens[obj_idx]
-        # Only assign id1 for true positives
-        id1 = self.instance_token_to_id.get(pos_obj_tok, -1)
-        
-        
-        if np.random.choice([0,1]) == 1:
-            pos_choices = self.get_random_frame(pos_obj_tok,2,replace=False)
-            s1 = self.sparse_loader[(pos_obj_tok,pos_choices[0],)]
-            s2 = self.sparse_loader[(pos_obj_tok,pos_choices[1],)]
-            # Apply augmentations during training
-            if getattr(self, 'training', True):
-                s1 = self.apply_augmentations(s1)
-                s2 = self.apply_augmentations(s2)
-            return self.return_item(s1,s2,l1,l1,id1,id1)
-        else:
-            pos_choice = self.get_random_frame(pos_obj_tok,1,replace=False)[0]
-            s1 = self.sparse_loader[(pos_obj_tok,pos_choice,)]
-            
-            neg_obj_tok, l2, density = self.get_random_other_even_train(taken_idx=obj_idx,
-                                                                        taken_cls=l1,
-                                                                        distribution=self.sparse_loader.obj_infos[pos_obj_tok]['distribution'])
-            
-            if neg_obj_tok.startswith("FP"):
-                id2 = -1
-            else:
-                id2 = self.instance_token_to_id[neg_obj_tok]
-            
-            neg_choice = self.sparse_loader.get_random_frame_even(neg_obj_tok,1,density=density,replace=False)[0]
-            s2 = self.sparse_loader[(neg_obj_tok,neg_choice,)]
-            # Apply augmentations during training
-            if getattr(self, 'training', True):
-                s1 = self.apply_augmentations(s1)
-                s2 = self.apply_augmentations(s2)
-            return self.return_item(s1,s2,l1,l2,id1,id2)
+        pair = self._pairs[i]
+        anchor_obj = pair['anchor_obj']
+        anchor_frame = pair['anchor_frame']
+        pair_obj = pair['pair_obj']
+        pair_frame = pair['pair_frame']
+        anchor_class = pair['anchor_class']
+        pair_class = pair['pair_class']
+        id1 = self.instance_token_to_id.get(anchor_obj, -1)
+        id2 = self.instance_token_to_id.get(pair_obj, -1)
+        s1 = self.sparse_loader[(anchor_obj, anchor_frame)]
+        s2 = self.sparse_loader[(pair_obj, pair_frame)]
+        if getattr(self, 'training', True):
+            s1 = self.apply_augmentations(s1)
+            s2 = self.apply_augmentations(s2)
+        return self.return_item(s1, s2, anchor_class, pair_class, id1, id2)
         
 @DATASETS.register_module()
 class ReIDDatasetJeongokValEven(ReIDDatasetJeongok):
@@ -212,6 +279,7 @@ class ReIDDatasetJeongokValEven(ReIDDatasetJeongok):
         self.sparse_loader.get_buckets(self.idx.tolist()+self.false_positive_idx.tolist())
         self.fp_buckets = self.sparse_loader.get_all_buckets(self.false_positive_idx.tolist())
 
+        # print(self.false_positive_idx)
         # print(self.fp_buckets)
 
         fp_buckets_filtered = dict()
@@ -235,6 +303,7 @@ class ReIDDatasetJeongokValEven(ReIDDatasetJeongok):
         # print(self.fp_buckets)
 
         self.tp_buckets = self.sparse_loader.get_all_buckets(self.idx.tolist())
+        # print(self.tp_buckets)
 
         val_negatives = []
         for x in self.val_positives:

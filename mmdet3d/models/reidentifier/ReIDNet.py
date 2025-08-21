@@ -1,40 +1,24 @@
-import torch.nn as nn
-from mmdet3d.models import FUSIONMODELS
-from transformers import (AutoImageProcessor, 
-                          AutoConfig, 
-                          AutoModel, 
-                          BeitModel, 
-                          AutoFeatureExtractor, 
-                          ViTForImageClassification, 
-                          DeiTForImageClassificationWithTeacher)
-import torch.nn.functional as F
-
-from .lanegcn_nets import PostRes,LinearRes
-from .pointattention import PointCloudAttention
-
-
-from .pointnet import PointNet, ED_PointNet
-from .pointnext import PointNeXt, ED_PointNeXt
-from .dgcnn_orig import DGCNN, ED_DGCNN
-from .deepgcn import DeepGCN, ED_DeepGCN
-from .backbone_net import Pointnet_Backbone, ED_Pointnet_Backbone
-from .spotr import SPoTr, ED_SPoTr
-from .dualreidnet import DualReID, ED_DualReID
-
-from mmdet.models import BaseDetector
-import torch.distributed as dist
-from pytorch3d.loss import chamfer_distance
-
 import os
+import time
+import copy
+import torch
 import numpy as np
+import torch.nn as nn
+import torch.nn.functional as F
+from mmdet.models import BaseDetector
+from mmdet3d.models import FUSIONMODELS
+from mmdet3d.models.layers.lanegcn_nets import PostRes,LinearRes
+from mmdet3d.models.layers.pointattention import PointCloudAttention
+from mmdet3d.models.backbone.pointnet import PointNet, ED_PointNet
+from mmdet3d.models.backbone.pointnext import PointNeXt, ED_PointNeXt
+from mmdet3d.models.backbone.dgcnn_orig import DGCNN, ED_DGCNN
+from mmdet3d.models.backbone.deepgcn import DeepGCN, ED_DeepGCN
+from mmdet3d.models.backbone.pointtransformer_backbone import PointTransformerBackbone, ED_PointTransformerBackbone
+from mmdet3d.models.backbone.spotr import SPoTr, ED_SPoTr
+from mmdet3d.models.backbone.dualreidnet import DualReID, ED_DualReID
+from mmdet3d.models.layers.attention import cross_attention, local_self_attention, cross_lin_attn
 from sklearn.decomposition import PCA
 from scipy.spatial.distance import cosine
-
-import torch
-import copy
-import time 
-
-from .attention import corss_attention, local_self_attention, cross_lin_attn
 
 module_obj = {
     'Linear':nn.Linear,
@@ -45,8 +29,7 @@ module_obj = {
     'LayerNorm':nn.LayerNorm,
     'PostRes':PostRes,
     'LinearRes':LinearRes,
-    'Pointnet_Backbone':Pointnet_Backbone,
-    'corss_attention':corss_attention,
+    'cross_attention':cross_attention,
     'local_self_attention':local_self_attention,
     'Conv1d':nn.Conv1d,
     'Conv2d':nn.Conv2d,
@@ -55,19 +38,13 @@ module_obj = {
     'cross_lin_attn':cross_lin_attn,
     'PointCloudAttention':PointCloudAttention,
 
-    'PointNet':PointNet,
-    'ED_PointNet':ED_PointNet,
-    'PointNeXt':PointNeXt,
-    'ED_PointNeXt':ED_PointNeXt,
-    'DGCNN':DGCNN,
-    'ED_DGCNN':ED_DGCNN,
-    'DeepGCN':DeepGCN,
-    'ED_DeepGCN':ED_DeepGCN,
-    'ED_Pointnet_Backbone':ED_Pointnet_Backbone,
-    'SPoTr':SPoTr,
-    'ED_SPoTr':ED_SPoTr,
-    'DualReID':DualReID,
-    'ED_DualReID':ED_DualReID,
+    'PointNet':PointNet, 'ED_PointNet':ED_PointNet,
+    'PointNeXt':PointNeXt, 'ED_PointNeXt':ED_PointNeXt,
+    'DGCNN':DGCNN, 'ED_DGCNN':ED_DGCNN,
+    'DeepGCN':DeepGCN, 'ED_DeepGCN':ED_DeepGCN,
+    'PointTransformerBackbone':PointTransformerBackbone, 'ED_PointTransformerBackbone':ED_PointTransformerBackbone,
+    'SPoTr':SPoTr, 'ED_SPoTr':ED_SPoTr,
+    'DualReID':DualReID, 'ED_DualReID':ED_DualReID,
 }
 
 def build_module(cfg):

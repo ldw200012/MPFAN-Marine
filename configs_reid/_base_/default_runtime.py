@@ -3,17 +3,31 @@ checkpoint_config = dict(interval=1)
 # By default we use textlogger hook and tensorboard
 # For more loggers see
 # https://mmcv.readthedocs.io/en/latest/api.html#mmcv.runner.LoggerHook
+
 log_config = dict(
-    interval=50,
+    interval=8,
     hooks=[
-        dict(type='TextLoggerHook'),
-        dict(type='TensorboardLoggerHook')
-    ])
+        dict(type='TextLoggerHook',reset_flag=False),
+        dict(type="TensorboardLoggerHook",
+            log_dir='runs/tensorboard',
+            interval=16),
+])
 # yapf:enable
+
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = None
 load_from = None
-# resume_from = None
-# resume_from = "runs/ablation/1by1/moe/ptr_siameseRoT_match_random/latest.pth"
-workflow = [('train', 1)]
+workflow = [('train', 1)]#,('val',1)]
+work_dir='work_dirs'
+find_unused_parameters=True
+dataloader_shuffle=False
+cudnn_benchmark=False
+train_tracker = False
+seed=66
+deterministic=False
+validate=True
+
+custom_hooks = [
+    dict(type='SaveModelToTensorboardHook', priority=40),
+    dict(type='TQDMProgressBarHook')
+]

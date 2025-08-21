@@ -227,7 +227,7 @@ class ReIDDatasetBase(object):
         keep_idx = np.where(reduce(np.logical_and,[temp > 2, is_fp == 0]))
         self.idx = idx[keep_idx]
         tp = len(self.idx)
-        print(f"\033[93mTrue positives after >2 frames filter: {tp}\033[0m")
+        print(f"\033[93mTrue positives after >2 frames filter: {self.idx}\033[0m")
         
         self.classes = np.array([self.cls_to_idx[self.tracking_classes.get(
                                             self.sparse_loader.obj_infos[self.obj_tokens[x]]['class_name'], 
@@ -238,7 +238,7 @@ class ReIDDatasetBase(object):
         self.idx = self.idx[keep_idx]
         tp_tracked = len(self.idx)
         self.classes = self.classes[keep_idx]
-        print(f"\033[93mTrue positives after class filtering: {tp_tracked}\033[0m")
+        # print(f"\033[93mTrue positives after class filtering: {tp_tracked}\033[0m")
 
         ##########################################
         #get false positive indices
@@ -246,21 +246,22 @@ class ReIDDatasetBase(object):
         keep_fp = np.where(reduce(np.logical_and,[temp > 0, is_fp == 1])) #keep all false positives with at least on example
         self.false_positive_idx = idx[keep_fp]
         fp = len(self.false_positive_idx)
-        print(f"\033[93mFalse positives after >0 frames filter: {fp}\033[0m")
+        print(f"\033[93mFalse positives after >0 frames filter: {self.false_positive_idx}\033[0m")
         
-        self.false_positive_classes = np.array([self.cls_to_idx[self.tracking_classes_fp.get(self.sparse_loader.obj_infos[self.obj_tokens[x]]['class_name'], 
-                                                                                          'none_key',)]
-                                                for x in self.false_positive_idx])
+        self.false_positive_classes = np.array([self.cls_to_idx_fp[self.tracking_classes_fp.get(
+                                            self.sparse_loader.obj_infos[self.obj_tokens[x]]['class_name'],
+                                            'none_key',)]
+                                        for x in self.false_positive_idx])
 
         #only keep tracked classes
         keep_idx = np.where(self.false_positive_classes != -1)
         self.false_positive_idx = self.false_positive_idx[keep_idx]
         fp_tracked = len(self.false_positive_idx)
         self.false_positive_classes = self.false_positive_classes[keep_idx]
-        self.false_positive_classes += len(self.CLASSES) #offset by 10 to avoid overlap with true classes
-        print(f"\033[93mFalse positives after class filtering: {fp_tracked}\033[0m")
+        # self.false_positive_classes += len(self.CLASSES) #offset by 10 to avoid overlap with true classes
+        # print(f"\033[93mFalse positives after class filtering: {fp_tracked}\033[0m")
         
-        print(f"\033[93mFinal dataset size: {tp_tracked + fp_tracked} objects\033[0m")
+        # print(f"\033[93mFinal dataset size: {tp_tracked + fp_tracked} objects\033[0m")
 
         # print(f"\033[91mDataset Statistics:\033[0m")
         # print(f"\033[91m┌─────────────────────────────────────────────────────────────┐\033[0m")
@@ -441,6 +442,7 @@ class ReIDDatasetBase(object):
             while not extracted:
                 try:
                     # print(self.fp_buckets)
+                    # print(self.idx_to_cls_fp)
                     fps = self.fp_buckets[self.idx_to_cls_fp[taken_cls]][b] # [('FP_0000958', 1), ('FP_0001104', 1), ('FP_0001155', 1), ...]
                     extracted = True
                 except KeyError:

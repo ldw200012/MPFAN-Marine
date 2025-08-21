@@ -11,7 +11,7 @@ class Anchor3DRangeGenerator:
     feature levels.
     Due the convention in 3D detection, different anchor sizes are related to
     different ranges for different categories. However we find this setting
-    does not effect the performance much in some datasets, e.g., nuScenes.
+    does not effect the performance much in some datasets, e.g., GenericDataset.
 
     Args:
         ranges (list[list[float]]): Ranges of different anchors.
@@ -21,7 +21,7 @@ class Anchor3DRangeGenerator:
         scales (list[int]): Scales of anchors in different feature levels.
         rotations (list[float]): Rotations of anchors in a feature grid.
         custom_values (tuple[float]): Customized values of that anchor. For
-            example, in nuScenes the anchors have velocities.
+            example, in GenericDataset the anchors have velocities.
         reshape_out (bool): Whether to reshape the output into (N x 4).
         size_per_range: Whether to use separate ranges for different sizes.
             If size_per_range is True, the ranges should have the same length

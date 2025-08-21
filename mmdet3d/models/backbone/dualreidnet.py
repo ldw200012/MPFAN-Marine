@@ -1,14 +1,14 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .pointnet2_utils import knn_point
+from mmdet3d.models.layers.pointnet2_utils import knn_point
 
-from .pointnet import PointNet, ED_PointNet
-from .pointnext import PointNeXt, ED_PointNeXt
-from .dgcnn_orig import DGCNN, ED_DGCNN
-from .deepgcn import DeepGCN, ED_DeepGCN
-from .backbone_net import Pointnet_Backbone, ED_Pointnet_Backbone
-from .spotr import SPoTr, ED_SPoTr
+from mmdet3d.models.backbone.pointnet import PointNet, ED_PointNet
+from mmdet3d.models.backbone.pointnext import PointNeXt, ED_PointNeXt
+from mmdet3d.models.backbone.dgcnn_orig import DGCNN, ED_DGCNN
+from mmdet3d.models.backbone.deepgcn import DeepGCN, ED_DeepGCN
+from mmdet3d.models.backbone.pointtransformer_backbone import PointTransformerBackbone, ED_PointTransformerBackbone
+from mmdet3d.models.backbone.spotr import SPoTr, ED_SPoTr
 
 ######################################################
 # DualReID(DGCNN) ==> DGCloneXt
@@ -19,7 +19,7 @@ class DualReID(nn.Module):
         super(DualReID, self).__init__()
         # torch.cuda.synchronize()
 
-        self.sub1_SA = Pointnet_Backbone(input_channels=0, use_xyz=True, conv_out=SA_conv_out, nsample=nsample)
+        self.sub1_SA = PointTransformerBackbone(input_channels=0, use_xyz=True, conv_out=SA_conv_out, nsample=nsample)
         self.sub2_DG = DGCNN(dropout=0.5,emb_dims=1024, k=20, output_channels=40) # output = emb_dims = 1024
 
          # 1024 to 32 for DGCNN
@@ -74,7 +74,7 @@ class ED_DualReID(nn.Module):
         super(ED_DualReID, self).__init__()
         # torch.cuda.synchronize()
 
-        self.sub1_SA = Pointnet_Backbone(input_channels=0, use_xyz=True, conv_out=SA_conv_out, nsample=nsample)
+        self.sub1_SA = PointTransformerBackbone(input_channels=0, use_xyz=True, conv_out=SA_conv_out, nsample=nsample)
         self.sub2_DG = DGCNN(dropout=0.5,emb_dims=1024, k=20, output_channels=40) # output = emb_dims = 1024
 
         # 1024 to 32 for DGCNN

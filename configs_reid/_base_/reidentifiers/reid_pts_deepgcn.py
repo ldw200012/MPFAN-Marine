@@ -5,7 +5,7 @@ hidden_size_match = output_feat_size * 2
 # 2 for avg and maxpool and 2 for concatenating the features of each object
 
 model = dict(
-    losses_to_use=dict(kl=False,match=False,cls=False,shape=False,fp=False,triplet=False),
+    losses_to_use=dict(kl=False,match=True,cls=False,shape=False,fp=False,triplet=False),
     alpha=dict(kl=1,match=1,cls=1,shape=1,fp=1,vis=1,triplet=1,),
 
     triplet_margin=10,
@@ -38,8 +38,8 @@ model = dict(
     ],
     # shape_head=dict(),
     downsample=None,
-    cross_stage1=dict(type='corss_attention',d_model=output_feat_size,nhead=2,attention='linear'),
-    cross_stage2=dict(type='corss_attention',d_model=output_feat_size,nhead=2,attention='linear'),
+    cross_stage1=dict(type='cross_attention',d_model=output_feat_size,nhead=2,attention='linear'),
+    cross_stage2=dict(type='cross_attention',d_model=output_feat_size,nhead=2,attention='linear'),
     local_stage1=dict(type='local_self_attention',d_model=output_feat_size,nhead=2,attention='linear',knum=48,pos_size=output_feat_size),
     local_stage2=dict(type='local_self_attention',d_model=output_feat_size,nhead=2,attention='linear',knum=48,pos_size=output_feat_size),
 )

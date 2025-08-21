@@ -8,7 +8,7 @@ import pickle as pkl
 from mmdet.datasets import DATASETS
 from lamtk.aggregation.loader import Loader
 from lamtk.aggregation.utils import filter_metadata_by_scene_ids, combine_metadata
-from mmdet3d.datasets.utils import get_or_create_nuscenes_dict
+from mmdet3d.datasets.utils import get_or_create_generic_dict
 
 from pathlib import Path
 
@@ -52,8 +52,8 @@ def load_metadata(metadata_path,use_fix=False):
     return sparse_metadata
 
 
-def load_nuscenes_metadata_split(metadata_path,version,train):
-    """Loads a specific split of the nuScenes dataset.
+def load_generic_metadata_split(metadata_path,version,train):
+    """Loads a specific split of the generic dataset.
     
     Args:
         metadata_path (str): Path to the metadata file.
@@ -62,9 +62,9 @@ def load_nuscenes_metadata_split(metadata_path,version,train):
         use_metadata_fix (bool): Whether to use the metadata fix(only relevant to ).
     """
 
-    splits_by_scene = get_or_create_nuscenes_dict(filename='ds_name_to_scene_token.pkl',
+    splits_by_scene = get_or_create_generic_dict(filename='ds_name_to_scene_token.pkl',
                                                         filepath='data/lstk',
-                                                        nuscenes_dataroot='data/nuscenes')
+                                                        generic_dataroot='data/genericdataset')
 
     metadata = load_metadata(metadata_path,use_fix=False)
     split = splits_by_scene[version]['train'].values() if train else splits_by_scene[version]['val'].values()
@@ -302,12 +302,12 @@ class ObjectLoaderSparseBase(Loader):
 
 
 ############################################
-# Nuscenes
+# GenericDataset
 ############################################
 
     
 @DATASETS.register_module()
-class ObjectLoaderSparseNuscenes(ObjectLoaderSparseBase):
+class ObjectLoaderSparseGeneric(ObjectLoaderSparseBase):
     def __init__(self,
                  train,
                  version,
@@ -315,16 +315,16 @@ class ObjectLoaderSparseNuscenes(ObjectLoaderSparseBase):
                  *args,
                  use_metdata_fix=False,
                  **kwargs):
-        metadata = load_nuscenes_metadata_split(metadata_path,version,train)
+        metadata = load_generic_metadata_split(metadata_path,version,train)
         super().__init__(*args,metadata=metadata,**kwargs)
 
-        self.sample_to_keyframes = get_or_create_nuscenes_dict(filename='sample_to_keyframes.pkl',
+        self.sample_to_keyframes = get_or_create_generic_dict(filename='sample_to_keyframes.pkl',
                                                                         filepath='data/lstk',
-                                                                        nuscenes_dataroot='data/nuscenes')
+                                                                        generic_dataroot='data/genericdataset')
 
-        self.instance_to_keyframes = get_or_create_nuscenes_dict(filename='instance_to_keyframes.pkl',
+        self.instance_to_keyframes = get_or_create_generic_dict(filename='instance_to_keyframes.pkl',
                                                                         filepath='data/lstk',
-                                                                        nuscenes_dataroot='data/nuscenes')
+                                                                        generic_dataroot='data/genericdataset')
 
         self.obj_id_to_nums = self.collect_obj_id_to_nums(self.min_points)
 
@@ -338,7 +338,7 @@ class ObjectLoaderSparseNuscenes(ObjectLoaderSparseBase):
 
 
 @DATASETS.register_module()
-class ObjectLoaderSparseNuscenesImage(ObjectLoaderSparseNuscenes):
+class ObjectLoaderSparseGenericImage(ObjectLoaderSparseGeneric):
     def __init__(self,*args,crop_size=(224,224),**kwargs):
         super().__init__(*args,**kwargs)
         self.crop_size = crop_size
@@ -466,10 +466,10 @@ class ObjectLoaderCompleteBase(Loader):
 
 
 @DATASETS.register_module()
-class ObjectLoaderCompleteNuscenes(Loader):
+class ObjectLoaderCompleteGeneric(Loader):
 
     def __init__(self,train,version,metadata_path,*args,**kwargs):
-        metadata = load_nuscenes_metadata_split(metadata_path,version,train)
+        metadata = load_generic_metadata_split(metadata_path,version,train)
         super().__init__(*args,metadata=metadata,**kwargs)
 
     def __getitem__(self, obj_id):

@@ -57,5 +57,5 @@ def check_metadata(metadata_path):
     print(f"Expected val objects: {val_targets + fp_targets}")
 
 if __name__ == "__main__":
-    metadata_path = "Datasets/NuScenes-ReID/data/lstk/sparse-trainval-det-both/metadata/metadata.pkl"
+    metadata_path = "Datasets/Jeongok-ReID/data/lstk/sparse-trainval-det-both/metadata/metadata.pkl"
     check_metadata(metadata_path) 

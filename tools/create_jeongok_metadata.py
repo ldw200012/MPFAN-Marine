@@ -47,10 +47,10 @@ def create_jeongok_metadata(data_root, output_path):
         # Initialize object info
         obj_info = {
             'id': obj_id,
-            'class_name': 'boat',  # All objects are boats in Jeongok dataset
+            'class_name': 'FP_boat' if obj_id.startswith('FP') else 'boat',
             'num_pts': {},
             'visibility': {},
-            'path': f'objects/{obj_id}',
+            'path': f'{obj_id}',
             'scene_id': 'jeongok_scene',  # Single scene for Jeongok
             'tracking_id': obj_id
         }

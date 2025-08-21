@@ -5,7 +5,7 @@ hidden_size_match = output_feat_size * 2
 # 2 for avg and maxpool and 2 for concatenating the features of each object
 
 model = dict(
-    losses_to_use=dict(kl=False,match=False,cls=False,shape=False,fp=False,triplet=False),
+    losses_to_use=dict(kl=False,match=True,cls=False,shape=False,fp=False,triplet=False),
     alpha=dict(kl=1,match=1,cls=1,shape=1,fp=1,vis=1,triplet=1,),
 
     triplet_margin=10,
@@ -20,6 +20,7 @@ model = dict(
     use_dgcnn=False,
     
     backbone=dict(type='PointNeXt'),
+    # backbone=dict(type='ED_PointNeXt', ED_nsample=10, ED_conv_out=8),
 
     match_head=[dict(type='LinearRes', n_in=hidden_size_match, n_out=hidden_size_match, norm='GN',ng=8),
                 dict(type='Linear', in_features=hidden_size_match, out_features=1)],
@@ -38,8 +39,8 @@ model = dict(
     ],
     # shape_head=dict(),
     downsample=None,
-    cross_stage1=dict(type='corss_attention',d_model=output_feat_size,nhead=2,attention='linear'),
-    cross_stage2=dict(type='corss_attention',d_model=output_feat_size,nhead=2,attention='linear'),
+    cross_stage1=dict(type='cross_attention',d_model=output_feat_size,nhead=2,attention='linear'),
+    cross_stage2=dict(type='cross_attention',d_model=output_feat_size,nhead=2,attention='linear'),
     local_stage1=dict(type='local_self_attention',d_model=output_feat_size,nhead=2,attention='linear',knum=48,pos_size=output_feat_size),
     local_stage2=dict(type='local_self_attention',d_model=output_feat_size,nhead=2,attention='linear',knum=48,pos_size=output_feat_size),
 )

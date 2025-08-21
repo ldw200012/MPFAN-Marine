@@ -9,7 +9,7 @@ from itertools import islice
 from mmdet.datasets import DATASETS
 from lamtk.aggregation.loader import Loader
 from lamtk.aggregation.utils import filter_metadata_by_scene_ids, combine_metadata
-from mmdet3d.datasets.utils import get_or_create_nuscenes_dict
+from mmdet3d.datasets.utils import get_or_create_generic_dict
 
 from pathlib import Path
 
@@ -60,9 +60,9 @@ def load_metadata_split(metadata_path,version,train):
         use_metadata_fix (bool): Whether to use the metadata fix(only relevant to ).
     """
 
-    splits_by_scene = get_or_create_nuscenes_dict(filename='ds_name_to_scene_token.pkl',
+    splits_by_scene = get_or_create_generic_dict(filename='ds_name_to_scene_token.pkl',
                                                         filepath='Datasets/NuScenes-ReID/data/lstk',
-                                                        nuscenes_dataroot='Datasets/NuScenes-ReID/data/nuscenes')
+                                                        generic_dataroot='Datasets/NuScenes-ReID/data/genericdataset')
 
     metadata = load_metadata(metadata_path,use_fix=False)
     split = splits_by_scene[version]['train'].values() if train else splits_by_scene[version]['val'].values()
@@ -113,7 +113,7 @@ def load_jeongok_metadata(metadata_path, train):
                        if any(target in k for target in valid_targets)}
     }
     
-    print(f"[load_jeongok_metadata] {'Train' if train else 'Val'} split: {len(filtered_metadata['obj_infos'])} targets")
+    # print(f"[load_jeongok_metadata] {'Train' if train else 'Val'} split: {len(filtered_metadata['obj_infos'])} targets")
     return filtered_metadata
 
 @DATASETS.register_module()
@@ -192,15 +192,15 @@ class ObjectLoaderSparseBase(Loader):
         temp = list(self.obj_id_to_nums.keys())
         for idx in index:
             obj = self.obj_infos[temp[idx]]
-            cls_temp = self.tracking_classes.get(obj['class_name'],None)
-            if cls_temp is None:
+            cls_ = self.tracking_classes.get(obj['class_name'],None)
+            if cls_ is None:
                 #skip non tracking classes
                 continue
 
-            if obj['id'].startswith('FP_'):
-                cls_ = 'FP_' + cls_temp
-            else:
-                cls_ = cls_temp
+            # if obj['id'].startswith('FP_'):
+            #     cls_ = 'FP_' + cls_temp
+            # else:
+            #     cls_ = cls_temp
 
             all_buckets[cls_] = all_buckets.get(cls_,{})
             for k,pts_list in obj['buckets'].items():
@@ -266,13 +266,9 @@ class ObjectLoaderSparseBase(Loader):
             except KeyError: 
                 self.obj_id_to_nums[info['id']] = self.get_filtered_nums(info)
             path = osp.join(info['path'], frame_idx)
+            #self.obj_id_to_nums[info['id']][frame_idx])
             for name, dim in zip(self.load_feats, self.load_dims):
-                if name == 'xyz_eigen':
-                    # Use eigen_k from config (default 16 if not set)
-                    k = getattr(self, 'eigen_k', 16)
-                    feats_file = f'{self.data_root}/{path}/pts_xyz_eigen_{k}.bin'
-                else:
-                    feats_file = f'{self.data_root}/{path}/pts_{name}.bin'
+                feats_file = f'{self.data_root}/{path}/pts_{name}.bin'
                 num_pts = int(os.stat(feats_file).st_size // (4 * dim))
                 num_pts -= int(num_pts * self.load_fraction)
                 points.append(np.fromfile(feats_file,
@@ -353,7 +349,7 @@ class ObjectLoaderSparseJeongok(ObjectLoaderSparseBase):
         t1 = time.time()
         self.get_buckets(np.arange(0,len(self.obj_id_to_nums)))
         self.get_all_buckets(np.arange(0,len(self.obj_id_to_nums)))
-        print("[ObjectLoaderSparseJeongok] Loading buckets took: ",time.time()-t1)
+        # print("[ObjectLoaderSparseJeongok] Loading buckets took: ",time.time()-t1)
 
     def load(self,*args,**kwerags):
         return self.load_points(*args,**kwerags)

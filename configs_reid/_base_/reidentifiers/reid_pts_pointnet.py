@@ -3,12 +3,11 @@ output_feat_size = 64 # 128
 hidden_size = output_feat_size * 2
 hidden_size_match = output_feat_size * 2
 
-# ng = 16
 downsample_dim = 64
 downsample_input = 1024
 
 model = dict(
-    losses_to_use=dict(kl=False,match=False,cls=False,shape=False,fp=False,triplet=False),
+    losses_to_use=dict(kl=False,match=True,cls=False,shape=False,fp=False,triplet=False),
     alpha=dict(kl=1,match=1,cls=1,shape=1,fp=1,vis=1,triplet=1,),
 
     triplet_margin=10,
@@ -22,50 +21,37 @@ model = dict(
     num_classes=num_classes,
     use_dgcnn=True,
 
-    backbone=dict(type='PointNet',k=40,normal_channel=False, dropout=0.3),
+    backbone=dict(type='PointNet',k=40,normal_channel=False),
+    # backbone=dict(type='ED_PointNet', ED_nsample=10, ED_conv_out=4),
     
     match_head=[
         dict(type='LinearRes', n_in=hidden_size_match, n_out=hidden_size_match, norm='GN',ng=8),
-        dict(type='Dropout', p=0.3),
         dict(type='Linear', in_features=hidden_size_match, out_features=1)
     ],
     cls_head=[
         dict(type='LinearRes', n_in=hidden_size, n_out=hidden_size, norm='GN',ng=16),
-        dict(type='Dropout', p=0.3),
         dict(type='Linear', in_features=hidden_size, out_features=num_classes)
     ],
     fp_head=[
         dict(type='LinearRes', n_in=hidden_size, n_out=hidden_size, norm='GN',ng=16),
-        dict(type='Dropout', p=0.3),
         dict(type='Linear', in_features=hidden_size, out_features=1)
     ],
     shape_head=[
         dict(type='Conv1d', in_channels=hidden_size, out_channels=1024, kernel_size=output_feat_size//2),
         dict(type='BatchNorm1d', num_features=1024),
         dict(type='ReLU'),
-        dict(type='Dropout', p=0.3),
         dict(type='Conv1d', in_channels=1024, out_channels=2048, kernel_size=output_feat_size//4),
         dict(type='BatchNorm1d', num_features=2048),
         dict(type='ReLU'),
-        dict(type='Dropout', p=0.3),
         dict(type='Conv1d', in_channels=2048, out_channels=2048, kernel_size=output_feat_size//4),
     ],
-    # shape_head=dict(),
+    # shape_head=dict(),                     
     downsample=[dict(type='LinearRes', n_in=downsample_input, n_out=512, norm='GN',ng=64),
-                dict(type='Dropout', p=0.3),
                 dict(type='LinearRes', n_in=512, n_out=128, norm='GN',ng=16),
-                dict(type='Dropout', p=0.3),
                 dict(type='Linear', in_features=128, out_features=downsample_dim)],
-    # downsample=None,
-    cross_stage1=dict(type='corss_attention',d_model=output_feat_size,nhead=2,attention='linear'),
-    cross_stage2=dict(type='corss_attention',d_model=output_feat_size,nhead=2,attention='linear'),
+    cross_stage1=dict(type='cross_attention',d_model=output_feat_size,nhead=2,attention='linear'),
+    cross_stage2=dict(type='cross_attention',d_model=output_feat_size,nhead=2,attention='linear'),
     local_stage1=dict(),
     local_stage2=dict(),
 )
-
-# custom_hooks = [
-#     dict(type='ProgressBarHook')
-# ]
-
-
                  
