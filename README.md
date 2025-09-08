@@ -2,19 +2,7 @@
 
 <b>M</b>ulti-<b>P</b>erspective <b>F</b>eature <b>A</b>ggregation <b>N</b>etwork <b>(MPFAN)</b> is a LiDAR point cloud-based 3D object re-identification model, powered by the aggregation of multiple feature vectors extracted using various sub-network structures.
 
-## BEFORE START
-📌 You need to SignUp to NeptuneAI, and input your Project & Token as below to two files.
-- MPFAN-Marine/configs_reid/\_base\_/reidentification_runtime.py
-- MPFAN-Marine/configs_reid/\_base\_/reidentification_runtime_testing.py
-```
-init_kwargs={
-'project':"dongwooklee1201/mpfan-marine-eval",
-'api_token':"eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiJiNmY3MjBiMi01Mjg2LTQwOTYtODIzYy00Mjk4MGIwMTQ4ZjcifQ==",
-...
-},
-```
-
-## BUILD REPOSITORY
+## 🚀 BUILD REPOSITORY
 1. Clone the MPFAN git repository (Main Workspace)
 ```
 git clone https://github.com/ldw200012/MPFAN-Marine.git
@@ -24,7 +12,7 @@ git clone https://github.com/ldw200012/MPFAN-Marine.git
 cd MPFAN-Marine/
 git clone https://github.com/c7huang/lamtk
 ```
-## ENVIRONMENT SETUP
+## ⚙️ ENVIRONMENT SETUP
 1. Pull docker image (the image is with CUDA-11.3)
 ```
 docker pull daldidan/mpfan:latest
@@ -42,7 +30,7 @@ cd /mpfan/lamtk
 pip install -e .
 ```
 
-## GET PRETRAINED WEIGHTS
+## 📥 GET PRETRAINED WEIGHTS
 We provide you the pretrained weights for the following models: PointNet, PointNeXt, DGCNN, DeepGCN, Point Transformer, SPoTr, MPFAN.
 
 | Model          | Trained Epoch | # Params | Download  |
@@ -54,17 +42,17 @@ We provide you the pretrained weights for the following models: PointNet, PointN
 | SPoTr          | 500           | -        | [LINK](#) |
 | MPFAN          | 500           | -        | [LINK](https://drive.usercontent.google.com/download?id=1pGCarCGP6N-qt4nYr8WU7YqgYSuvEJUT) |
 
-## <img src="https://cdn-icons-png.freepik.com/512/4834/4834296.png" width=15/> TRAIN
+## 🎯 TRAIN
 ```
-CUDA_VISIBLE_DEVICES={GPU-ID} MASTER_ADDR=localhost torchpack dist-run -v -np 1 python tools/train.py configs_reid/reid_jeongok_pts/training/training_{model_name}.py --seed 66  --run-dir runs/
-```
-
-## <img src="https://cdn-icons-png.flaticon.com/512/5671/5671391.png" width=15/> TEST
-```
-CUDA_VISIBLE_DEVICES={GPU-ID} MASTER_ADDR=localhost torchpack dist-run -v -np 1 python tools/train.py configs_reid/reid_jeongok_pts/testing/testing_{model_name}.py --checkpoint weights/{checkpoint_name}.pth
+./tools/bash/train.sh {GPU-ID} {model_name} {dataset_name}
 ```
 
-## ACKNOWLEDGEMENTS
+## 🧪 TEST
+```
+./tools/bash/test.sh {GPU-ID} {model_name} {checkpoint_name} {dataset_name}
+```
+
+## 🙏 ACKNOWLEDGEMENTS
 Out repository is based on <a href="https://github.com/bentherien/point-cloud-reid.git">point-cloud-reid</a>, <a href="https://github.com/open-mmlab/mmdetection3d.git">mmdetection3d</a>, and <a href="https://github.com/guochengqian/openpoints.git">openpoints</a>.
 
 <!-- ## CITE OUR WORK -->
