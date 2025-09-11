@@ -24,7 +24,7 @@ data = dict(
         return_mode='dict',
         verbose=False,
         validation_seed=0,
-        pairs_per_target=200,  # Number of positive pairs per class per epoch (with matched negatives)
+        pairs_per_target=20,  # Number of positive pairs per class per epoch (with matched negatives)
         augmentations=["rotate", "translate", "jitter"],  # List of augmentations to use
         sparse_loader=dict(
             type='ObjectLoaderSparseJeongok',
@@ -34,8 +34,8 @@ data = dict(
             version='v1.0-trainval',
             data_root='Datasets/Jeongok-ReID/data/lstk/sparse-trainval-det-both/objects',
             min_points=2,
-            load_feats=['xyz'],
-            load_dims=[3],
+            load_feats=['xyz', 'intensity'],
+            load_dims=[4],
             use_jeongok_split=True
         )
     ),
@@ -61,8 +61,8 @@ data = dict(
             version='v1.0-trainval',
             data_root='Datasets/Jeongok-ReID/data/lstk/sparse-trainval-det-both/objects',
             min_points=2,
-            load_feats=['xyz'],
-            load_dims=[3],
+            load_feats=['xyz', 'intensity'],
+            load_dims=[4],
             use_jeongok_split=True
         )
     )

@@ -19,8 +19,8 @@ def load_jeongok_metadata(metadata_path, train):
     regular_targets = [t for t in all_targets if not t.startswith('FP')]
     fp_targets = [t for t in all_targets if t.startswith('FP')]
     regular_targets.sort(key=lambda x: int(x.replace('target', '')))
-    train_targets = regular_targets[:6]
-    val_targets = regular_targets[6:8]
+    train_targets = regular_targets[:10]
+    val_targets = regular_targets[10:13]
     if train:
         valid_targets = train_targets + fp_targets
     else:
@@ -104,3 +104,6 @@ if __name__ == "__main__":
     with open(args.output, 'wb') as f:
         pickle.dump(pairs, f)
     print("Done.") 
+
+# python3 tools/make_pairs_pkl.py --metadata Datasets/Jeongok-ReID/data/lstk/sparse-trainval-det-both/metadata/metadata.pkl --output Datasets/Jeongok-ReID/data/lstk/sparse-trainval-det-both/train_pairs.pkl --train
+# python3 tools/make_pairs_pkl.py --metadata Datasets/Jeongok-ReID/data/lstk/sparse-trainval-det-both/metadata/metadata.pkl --output Datasets/Jeongok-ReID/data/lstk/sparse-trainval-det-both/val_pairs.pkl

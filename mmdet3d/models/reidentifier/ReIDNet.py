@@ -434,68 +434,68 @@ class ReIDNet(BaseDetector):
         # w3: 
         # 0: car, 1: truck, 3: bus, 4: trailer, 6: motorcycle, 8: pedestrian, -1: unlabeled
 
-        work = ["w1", "w2"]
-        pca = PCA(n_components=3)
-        model_name = "spotr"
-        # class_to_extract = [0,1,3,4,6,8,-1]
-        class_to_extract = [4]
+        # work = ["w1", "w2"]
+        # pca = PCA(n_components=3)
+        # model_name = "spotr"
+        # # class_to_extract = [0,1,3,4,6,8,-1]
+        # class_to_extract = [4]
 
-        #################################################################################################################################################
-        # Save Point Features by Model & Class
-        #################################################################################################################################################
+        # #################################################################################################################################################
+        # # Save Point Features by Model & Class
+        # #################################################################################################################################################
 
-        for idx, match_pred in enumerate(match_preds):
-            if int(label_1[idx]) in class_to_extract: # If [instance A] class in 'class_to_extract'
-                fa_T = h1[idx].T
-                fa_pca = pca.fit_transform(fa_T.cpu())
+        # for idx, match_pred in enumerate(match_preds):
+        #     if int(label_1[idx]) in class_to_extract: # If [instance A] class in 'class_to_extract'
+        #         fa_T = h1[idx].T
+        #         fa_pca = pca.fit_transform(fa_T.cpu())
 
-                if "w1" in work:
-                    file_path = "./runs_feats/PCAFEAT_online/PCAFEAT_{}_{}.npy".format(model_name, int(label_1[idx]))
-                    if os.path.exists(file_path):
-                        loaded_stacked_feats = np.load(file_path)
-                        print("A [Class: {}] [ID: {}] - {} / {}".format(int(label_1[idx]), int(id_1[idx]), loaded_stacked_feats.shape, fa_pca.shape))
-                        updated_stacked_feats = np.append(loaded_stacked_feats, fa_pca, axis=0)
-                        np.save(file_path, updated_stacked_feats)
-                    else:
-                        print("New Instance Feature_{}".format(int(label_1[idx])))
-                        np.save(file_path, fa_pca)
+        #         if "w1" in work:
+        #             file_path = "./runs_feats/PCAFEAT_online/PCAFEAT_{}_{}.npy".format(model_name, int(label_1[idx]))
+        #             if os.path.exists(file_path):
+        #                 loaded_stacked_feats = np.load(file_path)
+        #                 print("A [Class: {}] [ID: {}] - {} / {}".format(int(label_1[idx]), int(id_1[idx]), loaded_stacked_feats.shape, fa_pca.shape))
+        #                 updated_stacked_feats = np.append(loaded_stacked_feats, fa_pca, axis=0)
+        #                 np.save(file_path, updated_stacked_feats)
+        #             else:
+        #                 print("New Instance Feature_{}".format(int(label_1[idx])))
+        #                 np.save(file_path, fa_pca)
                 
-                if "w2" in work:
-                    file_path = "./runs_feats/PCAFEAT_online/PCAFEAT_{}_whole.npy".format(model_name)
-                    if os.path.exists(file_path):
-                        loaded_stacked_feats = np.load(file_path)
-                        print("Stacking to whole")
-                        updated_stacked_feats = np.append(loaded_stacked_feats, fa_pca, axis=0)
-                        np.save(file_path, updated_stacked_feats)
-                    else:
-                        print("New Instance Feature_whole")
-                        np.save(file_path, fa_pca)
+        #         if "w2" in work:
+        #             file_path = "./runs_feats/PCAFEAT_online/PCAFEAT_{}_whole.npy".format(model_name)
+        #             if os.path.exists(file_path):
+        #                 loaded_stacked_feats = np.load(file_path)
+        #                 print("Stacking to whole")
+        #                 updated_stacked_feats = np.append(loaded_stacked_feats, fa_pca, axis=0)
+        #                 np.save(file_path, updated_stacked_feats)
+        #             else:
+        #                 print("New Instance Feature_whole")
+        #                 np.save(file_path, fa_pca)
 
-            if int(label_2[idx]) in class_to_extract: # If [instance B] class in 'class_to_extract'
-                fb_T = h2[idx].T
-                fb_pca = pca.fit_transform(fb_T.cpu())
+        #     if int(label_2[idx]) in class_to_extract: # If [instance B] class in 'class_to_extract'
+        #         fb_T = h2[idx].T
+        #         fb_pca = pca.fit_transform(fb_T.cpu())
 
-                if "w1" in work:
-                    file_path = "./runs_feats/PCAFEAT_online/PCAFEAT_{}_{}.npy".format(model_name, int(label_2[idx]))
-                    if os.path.exists(file_path):
-                        loaded_stacked_feats = np.load(file_path)
-                        print("B [Class: {}] [ID: {}] - {} / {}".format(int(label_2[idx]), int(id_2[idx]), loaded_stacked_feats.shape, fb_pca.shape))
-                        updated_stacked_feats = np.append(loaded_stacked_feats, fb_pca, axis=0)
-                        np.save(file_path, updated_stacked_feats)
-                    else:
-                        print("New Instance Feature_{}".format(int(label_1[idx])))
-                        np.save(file_path, fb_pca)
+        #         if "w1" in work:
+        #             file_path = "./runs_feats/PCAFEAT_online/PCAFEAT_{}_{}.npy".format(model_name, int(label_2[idx]))
+        #             if os.path.exists(file_path):
+        #                 loaded_stacked_feats = np.load(file_path)
+        #                 print("B [Class: {}] [ID: {}] - {} / {}".format(int(label_2[idx]), int(id_2[idx]), loaded_stacked_feats.shape, fb_pca.shape))
+        #                 updated_stacked_feats = np.append(loaded_stacked_feats, fb_pca, axis=0)
+        #                 np.save(file_path, updated_stacked_feats)
+        #             else:
+        #                 print("New Instance Feature_{}".format(int(label_1[idx])))
+        #                 np.save(file_path, fb_pca)
                 
-                if "w2" in work:
-                    file_path = "./runs_feats/PCAFEAT_online/PCAFEAT_{}_whole.npy".format(model_name)
-                    if os.path.exists(file_path):
-                        loaded_stacked_feats = np.load(file_path)
-                        print("Stacking to whole")
-                        updated_stacked_feats = np.append(loaded_stacked_feats, fb_pca, axis=0)
-                        np.save(file_path, updated_stacked_feats)
-                    else:
-                        print("New Instance Feature_whole")
-                        np.save(file_path, fb_pca)
+        #         if "w2" in work:
+        #             file_path = "./runs_feats/PCAFEAT_online/PCAFEAT_{}_whole.npy".format(model_name)
+        #             if os.path.exists(file_path):
+        #                 loaded_stacked_feats = np.load(file_path)
+        #                 print("Stacking to whole")
+        #                 updated_stacked_feats = np.append(loaded_stacked_feats, fb_pca, axis=0)
+        #                 np.save(file_path, updated_stacked_feats)
+        #             else:
+        #                 print("New Instance Feature_whole")
+        #                 np.save(file_path, fb_pca)
         
         # KL Forward
         kl_loss = self.get_kl_loss(h1,h2,match,log_vars,device,prefix='')

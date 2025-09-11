@@ -9,7 +9,12 @@ from .reidentification_base import ReIDDatasetBase
 from .utils import (set_seeds, make_tup_str, to_tensor, \
                     subsamplePC, get_or_create_generic_dict)
 
+# ==============================================================================
+# ===== 데이터 증강(Augmentation) 함수 수정 (4D 데이터 호환) ======================
+# ==============================================================================
+
 def random_rotate(pc, roll_range=(-np.pi/4, np.pi/4), pitch_range=(-np.pi/4, np.pi/4), yaw_range=(0, 2*np.pi)):
+    """Applies random rotation to the XYZ coordinates, leaving other dimensions (e.g., intensity) untouched."""
     # Roll (X axis)
     roll = np.random.uniform(*roll_range)
     Rx = np.array([
@@ -31,21 +36,53 @@ def random_rotate(pc, roll_range=(-np.pi/4, np.pi/4), pitch_range=(-np.pi/4, np.
         [np.sin(yaw),  np.cos(yaw), 0],
         [0, 0, 1]
     ])
-    # Apply in order: roll, pitch, yaw
     R = Rz @ Ry @ Rx
-    return pc @ R.T
+    
+    # Separate XYZ from other features (like intensity)
+    xyz = pc[:, :3]
+    features = pc[:, 3:]
+
+    # Apply rotation only to XYZ
+    rotated_xyz = xyz @ R.T
+
+    # Concatenate rotated XYZ with original features
+    return np.hstack([rotated_xyz, features])
 
 def random_scale(pc, scale_range=(0.95, 1.05)):
+    """Applies random scaling to the XYZ coordinates."""
     scale = np.random.uniform(*scale_range)
-    return pc * scale
+    
+    xyz = pc[:, :3]
+    features = pc[:, 3:]
+    
+    scaled_xyz = xyz * scale
+    
+    return np.hstack([scaled_xyz, features])
 
 def random_translate(pc, shift_range=0.2):
+    """Applies random translation to the XYZ coordinates."""
     shift = np.random.uniform(-shift_range, shift_range, 3)
-    return pc + shift
+
+    xyz = pc[:, :3]
+    features = pc[:, 3:]
+
+    translated_xyz = xyz + shift
+
+    return np.hstack([translated_xyz, features])
 
 def random_jitter(pc, sigma=0.01, clip=0.05):
-    jitter = np.clip(sigma * np.random.randn(*pc.shape), -clip, clip)
-    return pc + jitter
+    """Applies random jitter to the XYZ coordinates."""
+    xyz = pc[:, :3]
+    features = pc[:, 3:]
+
+    jitter = np.clip(sigma * np.random.randn(*xyz.shape), -clip, clip)
+    jittered_xyz = xyz + jitter
+
+    return np.hstack([jittered_xyz, features])
+
+# ==============================================================================
+# ======================== 이하 코드는 원본과 동일 ===============================
+# ==============================================================================
 
 AUGMENTATION_FUNCS = {
     "rotate": lambda pc: random_rotate(pc),
@@ -73,8 +110,6 @@ class ReIDDatasetJeongok(ReIDDatasetBase):
                 self.instance_token_to_id[instance_token] = id
                 id += 1
 
-        # print(self.instance_token_to_id)
-
         self.obj_tokens = list(self.sparse_loader.obj_id_to_nums.keys())
         self.collect_dataset_idx()
         self._epoch = 0
@@ -101,23 +136,16 @@ class ReIDDatasetJeongok(ReIDDatasetBase):
         # Map class name to list of obj_idx
         class_to_obj_idxs = {}
         for idx, cls in enumerate(self.classes):
-            # print("Class #: ", idx, " / " , cls)
             class_to_obj_idxs.setdefault(cls, []).append(self.idx[idx])
 
         fp_class_to_obj_idxs = {}
         for idx, cls in enumerate(self.false_positive_classes):
-            # print("Class #: ", idx, " / " , cls)
             fp_class_to_obj_idxs.setdefault(cls, []).append(self.false_positive_idx[idx])
-
-        # print(class_to_obj_idxs)
-        # print(fp_class_to_obj_idxs)
 
         self._pairs = []
 
         for cls, obj_idxs in class_to_obj_idxs.items():
             for obj_idx in obj_idxs:
-                # print("Making Positive Pairs from ", obj_idx)
-
                 obj_tok = self.obj_tokens[obj_idx]
                 frames = list(obj_infos[obj_tok]['num_pts'].keys())
 
@@ -131,8 +159,6 @@ class ReIDDatasetJeongok(ReIDDatasetBase):
                     pos_frame_pairs = [all_pos_combinations[i] for i in pos_indices]
                 else:
                     pos_frame_pairs = all_pos_combinations
-
-                # print("Made Positive Pairs: ", pos_frame_pairs)
 
                 for anchor_frame, pair_frame in pos_frame_pairs:
                     # Positive pair (same object)
@@ -177,7 +203,6 @@ class ReIDDatasetJeongok(ReIDDatasetBase):
                         'pair_class': neg_cls,
                     })
 
-        # print(self._pairs)
         rng.shuffle(self._pairs)
 
     def __len__(self):
@@ -228,9 +253,9 @@ class ReIDDatasetJeongokValEven(ReIDDatasetJeongok):
             id1 = self.instance_token_to_id[pos_obj_tok]
 
             v1 = self.sparse_loader.obj_infos[pos_obj_tok]['nums_to_distance'].get(int(sample['o1']),-1)
-            v1 = 0#np.sqrt((self.sparse_loader.obj_infos[pos_obj_tok]['all_sizes'][v1,:2] ** 2).sum())
+            v1 = 0
             v2 = self.sparse_loader.obj_infos[pos_obj_tok]['nums_to_distance'].get(int(sample['o2']),-1)
-            v2 = 0#np.sqrt((self.sparse_loader.obj_infos[pos_obj_tok]['all_sizes'][v2,:2] ** 2).sum())
+            v2 = 0
 
             return self.return_item_size_dist(s1,s2,l1,l1,id1,id1,v1,v2)
         else:
@@ -250,9 +275,9 @@ class ReIDDatasetJeongokValEven(ReIDDatasetJeongok):
             id1 = self.instance_token_to_id[sample['tok1']]
 
             v1 = self.sparse_loader.obj_infos[sample['tok1']]['nums_to_distance'].get(int(sample['o1']),-1)
-            v1 = 0#np.sqrt((self.sparse_loader.obj_infos[sample['tok1']]['all_sizes'][v1,:2] ** 2).sum())
+            v1 = 0
             v2 = self.sparse_loader.obj_infos[sample['tok2']]['nums_to_distance'].get(int(sample['o2']),-1)
-            v2 = 0#np.sqrt((self.sparse_loader.obj_infos[sample['tok2']]['all_sizes'][v2,:2] ** 2).sum())
+            v2 = 0
             
             return self.return_item_size_dist(s1,s2,l1,l2,id1,id2,v1,v2)
 
@@ -266,7 +291,7 @@ class ReIDDatasetJeongokValEven(ReIDDatasetJeongok):
             nums = self.sparse_loader.obj_id_to_nums[tok]
             combs = list(itertools.combinations(nums, r=2))
             np.random.shuffle(combs)
-            combs=combs[:self.max_combinations] # dont use all combinations
+            combs=combs[:self.max_combinations]
             val_positives.extend([dict(o1=x[0],
                                        o2=x[1],
                                        pts1=self.sparse_loader.obj_infos[tok]['num_pts'][x[0]],
@@ -279,9 +304,6 @@ class ReIDDatasetJeongokValEven(ReIDDatasetJeongok):
         self.sparse_loader.get_buckets(self.idx.tolist()+self.false_positive_idx.tolist())
         self.fp_buckets = self.sparse_loader.get_all_buckets(self.false_positive_idx.tolist())
 
-        # print(self.false_positive_idx)
-        # print(self.fp_buckets)
-
         fp_buckets_filtered = dict()
         temp_dict = dict()
         fp_exist = False
@@ -292,18 +314,12 @@ class ReIDDatasetJeongokValEven(ReIDDatasetJeongok):
                     fp_exist = True
             fp_buckets_filtered[class_name] = temp_dict
 
-        # print(fp_buckets_filtered)
-
-        # print(fp_exist)
         if fp_exist:
             self.fp_buckets = fp_buckets_filtered
         else:
             self.fp_buckets = None
 
-        # print(self.fp_buckets)
-
         self.tp_buckets = self.sparse_loader.get_all_buckets(self.idx.tolist())
-        # print(self.tp_buckets)
 
         val_negatives = []
         for x in self.val_positives:
@@ -311,8 +327,6 @@ class ReIDDatasetJeongokValEven(ReIDDatasetJeongok):
                                                                          taken_cls=x['cls'],
                                                                          pts=x['pts2'],
                                                                          i=self.obj_tokens.index(x['tok']))
-
-            # other_choice = self.get_random_frame_even(other_token,1,replace=False)[0]
             val_negatives.append(dict(o1=x['o1'],
                                       o2=other_choice,
                                       tok1=x['tok'],

@@ -6,9 +6,9 @@ import numpy as np
 import pickle as pkl
 from itertools import islice
 
-from mmdet.datasets import DATASETS
-from lamtk.aggregation.loader import Loader
-from lamtk.aggregation.utils import filter_metadata_by_scene_ids, combine_metadata
+from mmdet3d.datasets import DATASETS
+from lamtk.lamtk.aggregation.loader import Loader
+from lamtk.lamtk.aggregation.utils import filter_metadata_by_scene_ids, combine_metadata
 from mmdet3d.datasets.utils import get_or_create_generic_dict
 
 from pathlib import Path
@@ -94,8 +94,8 @@ def load_jeongok_metadata(metadata_path, train):
     regular_targets.sort(key=lambda x: int(x.replace('target', '')))
     
     # Use first 6 regular targets for training, last 2 for validation
-    train_targets = regular_targets[:6]  # target1-target6
-    val_targets = regular_targets[6:8]   # target7-target8
+    train_targets = regular_targets[:10]  # target1-target6
+    val_targets = regular_targets[10:13]   # target7-target8
     # FP targets are always included in both splits
     
     if train:

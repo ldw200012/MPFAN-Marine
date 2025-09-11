@@ -7,6 +7,8 @@ lamtk/
 *.egg-info/
 runs/
 weights/
+my_project_env/
+txt_backups/
 
 # C extensions
 *.so
